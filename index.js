@@ -42,6 +42,7 @@ const startSock = async () => {
 
   sock.ev.on('creds.update', saveCreds);
   globalSock = sock;
+  globalSock.authState = { creds: state.creds, keys: state.keys };
 
   if (process.env.FAKE_TYPING === 'on') {
     sock.ev.on('messages.upsert', async ({ messages }) => {
