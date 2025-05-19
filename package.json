@@ -1,22 +1,25 @@
 {
   "name": "ben-whittaker-tech-bot",
   "version": "1.0.0",
-  "description": "A powerful WhatsApp bot with 1000+ features using Baileys",
+  "description": "A powerful WhatsApp bot with 200+ features using Baileys",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": ["whatsapp", "bot", "baileys", "nodejs"],
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "express",
+    "paircode"
+  ],
   "author": "Ben Whittaker Tech",
   "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.16",
-    "dotenv": "^16.3.1",
-    "pino": "^8.0.0",
-    "qrcode-terminal": "^0.12.0",
-    "chalk": "^5.3.0",
-    "fs-extra": "^11.1.1",
-    "axios": "^1.6.8"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pino": "^8.19.0"
   }
 }
