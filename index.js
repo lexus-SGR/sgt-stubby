@@ -4,15 +4,24 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
 } from '@whiskeysockets/baileys';
 
+import express from 'express';
 import pino from 'pino';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const useLogger = pino({ level: 'silent' });
 const msgRetryCounterCache = {};
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+let globalSock;
 
 const startSock = async () => {
   const { state, saveCreds } = await useMultiFileAuthState('session');
@@ -31,8 +40,8 @@ const startSock = async () => {
   });
 
   sock.ev.on('creds.update', saveCreds);
+  globalSock = sock;
 
-  // Fake typing & recording
   if (process.env.FAKE_TYPING === 'on') {
     sock.ev.on('messages.upsert', async ({ messages }) => {
       const m = messages[0];
@@ -41,6 +50,7 @@ const startSock = async () => {
       setTimeout(() => sock.sendPresenceUpdate('paused', m.key.remoteJid), 2000);
     });
   }
+
   if (process.env.FAKE_RECORDING === 'on') {
     sock.ev.on('messages.upsert', async ({ messages }) => {
       const m = messages[0];
@@ -50,7 +60,6 @@ const startSock = async () => {
     });
   }
 
-  // Auto open view once
   if (process.env.AUTO_VIEW_ONCE === 'on') {
     sock.ev.on('messages.upsert', async ({ messages }) => {
       const m = messages[0];
@@ -62,7 +71,6 @@ const startSock = async () => {
     });
   }
 
-  // Anti-delete
   if (process.env.ANTIDELETE === 'on') {
     sock.ev.on('messages.update', async (updates) => {
       for (const update of updates) {
@@ -79,16 +87,17 @@ const startSock = async () => {
     });
   }
 
-  // Load all commands from /commands/lib
   const commandsPath = path.join(__dirname, 'commands', 'lib');
-  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'));
+  const commandFiles = fs.existsSync(commandsPath)
+    ? fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'))
+    : [];
+
   const commands = {};
   for (const file of commandFiles) {
     const command = await import(path.join(commandsPath, file));
     commands[command.name] = command.execute;
   }
 
-  // Message handler
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
     if (!m.message || m.key.fromMe) return;
@@ -113,7 +122,6 @@ const startSock = async () => {
       return;
     }
 
-    // Pairing code command !getcode
     if (command === 'getcode') {
       if (!sock.authState.creds.registered) {
         try {
@@ -123,7 +131,7 @@ const startSock = async () => {
           });
         } catch {
           await sock.sendMessage(m.key.remoteJid, {
-            text: 'Failed to generate pairing code. Maybe bot is already logged in or an error occurred.',
+            text: 'Failed to generate pairing code.',
           });
         }
       } else {
@@ -132,7 +140,6 @@ const startSock = async () => {
     }
   });
 
-  // Group participant update (left notification)
   sock.ev.on('group-participants.update', async (update) => {
     if (update.action === 'remove') {
       const num = update.participants[0];
@@ -147,3 +154,30 @@ const startSock = async () => {
 };
 
 startSock();
+
+app.get('/paircode', async (req, res) => {
+  try {
+    if (globalSock && !globalSock.authState.creds.registered) {
+      const code = await globalSock.requestPairingCode("user@example.com");
+      res.send(`
+        <html>
+          <head><title>Pairing Code</title></head>
+          <body style="font-family:sans-serif; text-align:center; padding:50px;">
+            <h2>🔐 Pairing Code</h2>
+            <h1>${code}</h1>
+            <p>Go to WhatsApp > Linked Devices > Link with code</p>
+          </body>
+        </html>
+      `);
+    } else {
+      res.send('<h2>✅ Bot is already paired.</h2>');
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('<h2>❌ Error generating pairing code.</h2>');
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Server running: http://localhost:${PORT}/paircode`);
+});
