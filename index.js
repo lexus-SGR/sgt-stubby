@@ -89,17 +89,6 @@ const startSock = async () => {
     });
   }
 
-  const commandsPath = path.join(__dirname, 'commands', 'lib');
-  const commandFiles = fs.existsSync(commandsPath)
-    ? fs.readdirSync(commandsPath).filter((file) => file.endsWith('.js'))
-    : [];
-
-  const commands = {};
-  for (const file of commandFiles) {
-    const command = await import(path.join(commandsPath, file));
-    commands[command.name] = command.execute;
-  }
-
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const m = messages[0];
     if (!m.message || m.key.fromMe) return;
@@ -114,15 +103,6 @@ const startSock = async () => {
 
     const args = body.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
-
-    if (commands[command]) {
-      try {
-        await commands[command](sock, m, args);
-      } catch {
-        await sock.sendMessage(m.key.remoteJid, { text: 'Error executing command.' }, { quoted: m });
-      }
-      return;
-    }
 
     if (command === 'getcode') {
       if (!sock.authState.creds.registered) {
@@ -163,11 +143,33 @@ app.get('/paircode', async (req, res) => {
       const code = await globalSock.requestPairingCode("user@example.com");
       res.send(`
         <html>
-          <head><title>Pairing Code</title></head>
-          <body style="font-family:sans-serif; text-align:center; padding:50px;">
+          <head>
+            <title>Pairing Code</title>
+            <style>
+              body {
+                font-family: sans-serif;
+                text-align: center;
+                padding: 50px;
+                background-color: #f9f9f9;
+              }
+              h1 {
+                font-size: 3em;
+                color: #222;
+              }
+              h2 {
+                font-size: 1.5em;
+                color: #555;
+              }
+              p {
+                font-size: 1.2em;
+                color: #666;
+              }
+            </style>
+          </head>
+          <body>
             <h2>🔐 Pairing Code</h2>
             <h1>${code}</h1>
-            <p>Go to WhatsApp > Linked Devices > Link with code</p>
+            <p>Go to <strong>WhatsApp > Linked Devices > Link with code</strong></p>
           </body>
         </html>
       `);
