@@ -1,220 +1,63 @@
-import {
-  makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-} from '@whiskeysockets/baileys';
-
-import express from 'express';
-import pino from 'pino';
-import dotenv from 'dotenv';
-import fs from 'fs';
+import { default as makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
+import { readdirSync } from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import qrcode from 'qrcode-terminal';
-import QRCode from 'qrcode';
 
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const useLogger = pino({ level: 'silent' });
-const msgRetryCounterCache = {};
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-let globalSock;
-let qrImageData = null; // global QR image data
-
-const startSock = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState('session');
-  const { version } = await fetchLatestBaileysVersion();
+async function startBot() {
+  // Pata auth state kwenye folder 'auth_info'
+  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
   const sock = makeWASocket({
-    version,
-    logger: useLogger,
+    auth: state,
     printQRInTerminal: true,
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, useLogger),
-    },
-    msgRetryCounterCache,
-    generateHighQualityLinkPreview: true,
   });
 
   sock.ev.on('creds.update', saveCreds);
-  globalSock = sock;
-  globalSock.authState = { creds: state.creds, keys: state.keys };
 
-  // QR CODE listener
-  sock.ev.on('connection.update', async (update) => {
-    const { qr } = update;
-    if (qr) {
-      qrcode.generate(qr, { small: true });
-      qrImageData = await QRCode.toDataURL(qr);
+  sock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update;
+    if(connection === 'open') {
+      console.log('✅ Bot imeunganishwa WhatsApp');
+    } else if(connection === 'close') {
+      const shouldReconnect = (lastDisconnect.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+      console.log('❌ Connection imekatika:', lastDisconnect.error);
+      if(shouldReconnect) {
+        startBot(); // Reconnect
+      }
     }
   });
 
-  // Optional features
-  if (process.env.FAKE_TYPING === 'on') {
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-      const m = messages[0];
-      if (!m.message) return;
-      await sock.sendPresenceUpdate('composing', m.key.remoteJid);
-      setTimeout(() => sock.sendPresenceUpdate('paused', m.key.remoteJid), 2000);
-    });
-  }
+  // Pokea ujumbe
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if(type !== 'notify') return;
 
-  if (process.env.FAKE_RECORDING === 'on') {
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-      const m = messages[0];
-      if (!m.message) return;
-      await sock.sendPresenceUpdate('recording', m.key.remoteJid);
-      setTimeout(() => sock.sendPresenceUpdate('paused', m.key.remoteJid), 2000);
-    });
-  }
+    const msg = messages[0];
+    if(!msg.message || msg.key.fromMe) return;
 
-  if (process.env.AUTO_VIEW_ONCE === 'on') {
-    sock.ev.on('messages.upsert', async ({ messages }) => {
-      const m = messages[0];
-      if (m.message?.viewOnceMessageV2) {
-        let msg = m.message.viewOnceMessageV2.message;
-        m.message = msg;
-        await sock.sendMessage(m.key.remoteJid, { forward: m }, { quoted: m });
-      }
-    });
-  }
+    // Fanya text command parsing
+    const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+    if(!text) return;
 
-  if (process.env.ANTIDELETE === 'on') {
-    sock.ev.on('messages.update', async (updates) => {
-      for (const update of updates) {
-        if (update.update?.messageStubType === 0) continue;
-        if (update.messageStubType === 1 && update.key?.remoteJid?.endsWith('@g.us')) {
-          const original = update.message;
-          if (original) {
-            await sock.sendMessage(update.key.remoteJid, {
-              text: `Message deleted:\n\n${JSON.stringify(original, null, 2)}`,
-            });
-          }
+    // Check kama ni command
+    if(!text.startsWith('!')) return;
+    const commandName = text.slice(1).split(' ')[0].toLowerCase();
+
+    // Load commands kutoka folder commands
+    try {
+      const commandsPath = path.resolve('./commands');
+      const commandFiles = readdirSync(commandsPath).filter(f => f.endsWith('.js'));
+      
+      for(const file of commandFiles) {
+        const command = await import(path.join(commandsPath, file));
+        if(command.name === commandName) {
+          await command.execute(sock, msg, text);
+          break;
         }
       }
-    });
-  }
-
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const m = messages[0];
-    if (!m.message || m.key.fromMe) return;
-
-    const body =
-      m.message.conversation ||
-      m.message.extendedTextMessage?.text ||
-      m.message.imageMessage?.caption || '';
-
-    const prefix = '!';
-    if (!body.startsWith(prefix)) return;
-
-    const args = body.slice(prefix.length).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
-
-    if (command === 'getcode') {
-      if (!sock.authState.creds.registered) {
-        try {
-          const code = await sock.requestPairingCode(m.key.remoteJid);
-          await sock.sendMessage(m.key.remoteJid, {
-            text: `🔐 *Pairing Code*\n\nUse this code to link your device:\n\n*${code}*\n\nGo to WhatsApp > Linked Devices > Link with code.`,
-          });
-        } catch {
-          await sock.sendMessage(m.key.remoteJid, {
-            text: 'Failed to generate pairing code.',
-          });
-        }
-      } else {
-        await sock.sendMessage(m.key.remoteJid, { text: '✅ Bot is already paired.' });
-      }
+    } catch (err) {
+      console.error('❌ Error loading commands:', err);
     }
   });
+}
 
-  sock.ev.on('group-participants.update', async (update) => {
-    if (update.action === 'remove') {
-      const num = update.participants[0];
-      await sock.sendMessage(update.id, {
-        text: `@${num.split('@')[0]} has left the group.`,
-        mentions: [num],
-      });
-    }
-  });
-
-  return sock;
-};
-
-startSock();
-
-// Routes
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Pairing Code page
-app.get('/paircode', async (req, res) => {
-  try {
-    if (globalSock && !globalSock.authState.creds.registered) {
-      const code = await globalSock.requestPairingCode("user@example.com");
-      res.send(`
-        <html>
-          <head>
-            <title>Pairing Code</title>
-            <style>
-              body {
-                font-family: sans-serif;
-                text-align: center;
-                padding: 50px;
-                background-color: #f9f9f9;
-              }
-              h1 {
-                font-size: 3em;
-                color: #222;
-              }
-              h2 {
-                font-size: 1.5em;
-                color: #555;
-              }
-              p {
-                font-size: 1.2em;
-                color: #666;
-              }
-            </style>
-          </head>
-          <body>
-            <h2>🔐 Pairing Code</h2>
-            <h1>${code}</h1>
-            <p>Go to <strong>WhatsApp > Linked Devices > Link with code</strong></p>
-          </body>
-        </html>
-      `);
-    } else {
-      res.send('<h2>✅ Bot is already paired.</h2>');
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('<h2>❌ Error generating pairing code.</h2>');
-  }
-});
-
-// Serve QR code image
-app.get('/qr', (req, res) => {
-  if (!qrImageData) return res.send('QR code not ready yet. Please refresh.');
-  const img = Buffer.from(qrImageData.split(',')[1], 'base64');
-  res.writeHead(200, {
-    'Content-Type': 'image/png',
-    'Content-Length': img.length,
-  });
-  res.end(img);
-});
-
-// Serve QR HTML page
-app.get('/pairing', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/pairing.html'));
-});
-
-app.listen(PORT, () => {
-  console.log(`🌐 Server running: http://localhost:${PORT}/paircode`);
-});
+startBot();
