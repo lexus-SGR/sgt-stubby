@@ -11,6 +11,8 @@ import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import qrcode from 'qrcode-terminal';
+import QRCode from 'qrcode';
 
 dotenv.config();
 
@@ -23,6 +25,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 let globalSock;
+let qrImageData = null; // global QR image data
 
 const startSock = async () => {
   const { state, saveCreds } = await useMultiFileAuthState('session');
@@ -44,6 +47,16 @@ const startSock = async () => {
   globalSock = sock;
   globalSock.authState = { creds: state.creds, keys: state.keys };
 
+  // QR CODE listener
+  sock.ev.on('connection.update', async (update) => {
+    const { qr } = update;
+    if (qr) {
+      qrcode.generate(qr, { small: true });
+      qrImageData = await QRCode.toDataURL(qr);
+    }
+  });
+
+  // Optional features
   if (process.env.FAKE_TYPING === 'on') {
     sock.ev.on('messages.upsert', async ({ messages }) => {
       const m = messages[0];
@@ -137,6 +150,10 @@ const startSock = async () => {
 
 startSock();
 
+// Routes
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Pairing Code page
 app.get('/paircode', async (req, res) => {
   try {
     if (globalSock && !globalSock.authState.creds.registered) {
@@ -180,6 +197,22 @@ app.get('/paircode', async (req, res) => {
     console.error(err);
     res.status(500).send('<h2>❌ Error generating pairing code.</h2>');
   }
+});
+
+// Serve QR code image
+app.get('/qr', (req, res) => {
+  if (!qrImageData) return res.send('QR code not ready yet. Please refresh.');
+  const img = Buffer.from(qrImageData.split(',')[1], 'base64');
+  res.writeHead(200, {
+    'Content-Type': 'image/png',
+    'Content-Length': img.length,
+  });
+  res.end(img);
+});
+
+// Serve QR HTML page
+app.get('/pairing', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/pairing.html'));
 });
 
 app.listen(PORT, () => {
