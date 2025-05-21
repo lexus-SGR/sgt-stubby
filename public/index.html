@@ -63,6 +63,41 @@
       height: 40px;
       margin: 0 8px;
     }
+
+    /* New styles for QR and Pair Code section */
+    #qr-section {
+      margin-top: 30px;
+      background: rgba(255, 215, 0, 0.1);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px gold;
+      color: black;
+    }
+    #qr-image {
+      max-width: 200px;
+      margin-bottom: 15px;
+      border-radius: 12px;
+      background: white;
+      padding: 10px;
+    }
+    #pair-code {
+      font-size: 24px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      margin-bottom: 15px;
+    }
+    button#generatePairCode {
+      background-color: gold;
+      border: none;
+      padding: 10px 18px;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button#generatePairCode:hover {
+      background-color: #fcd900;
+    }
   </style>
 </head>
 <body>
@@ -73,6 +108,16 @@
       <a class="btn" href="https://sgt-stubby-2.onrender.com/pair" target="_blank">PAIR CODE</a>
       <a class="btn" href="https://whatsapp.com/channel/0029Vb6JhPyBKfhv6j6msk3t" target="_blank">CHANNEL</a>
       <a class="btn" href="https://wa.me/255767862457" target="_blank">CALL ME</a>
+
+      <div id="qr-section">
+        <h3 style="color: black;">WhatsApp QR Code (scan to login):</h3>
+        <img id="qr-image" src="" alt="QR Code loading..." />
+        <div id="qr-status" style="color: red; margin-bottom: 10px;">Loading QR code...</div>
+
+        <h3 style="color: black;">Generate New Pair Code:</h3>
+        <div id="pair-code">---</div>
+        <button id="generatePairCode">Generate Pair Code</button>
+      </div>
 
       <div class="support">
         <h3 style="margin: 20px 0 10px;">SUPPORT DEVELOPER</h3>
@@ -94,5 +139,47 @@
       </div>
     </div>
   </div>
+
+  <script>
+    async function fetchQRCode() {
+      try {
+        const res = await fetch('/api/qr')
+        const data = await res.json()
+        const qrImg = document.getElementById('qr-image')
+        const qrStatus = document.getElementById('qr-status')
+
+        if (data.qr) {
+          qrImg.src = data.qr
+          qrStatus.textContent = 'Please scan this QR code with your WhatsApp app.'
+        } else {
+          qrImg.src = ''
+          qrStatus.textContent = 'No QR code available currently.'
+        }
+      } catch (error) {
+        console.error('Error fetching QR code:', error)
+        document.getElementById('qr-status').textContent = 'Failed to load QR code.'
+      }
+    }
+
+    async function generatePairCode() {
+      try {
+        const res = await fetch('/api/pair-code')
+        const data = await res.json()
+        document.getElementById('pair-code').textContent = data.pairCode
+      } catch (error) {
+        console.error('Error generating pair code:', error)
+        document.getElementById('pair-code').textContent = 'Error generating pair code'
+      }
+    }
+
+    document.getElementById('generatePairCode').addEventListener('click', generatePairCode)
+
+    // Initial load
+    fetchQRCode()
+    generatePairCode()
+
+    // Optionally refresh QR code every 20 seconds (if your server refreshes QR)
+    setInterval(fetchQRCode, 20000)
+  </script>
 </body>
 </html>
