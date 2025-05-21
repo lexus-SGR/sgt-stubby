@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ben Whittaker Tech Pair</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 2rem; }
+  input, button { font-size: 1.2rem; padding: 0.5rem; }
+  #result { margin-top: 1rem; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Unganisha WhatsApp yako na Ben Whittaker Bot</h1>
+
+<form id="pairForm">
+  <label>Ingiza namba yako ya WhatsApp (2557XXXXXXX):</label><br />
+  <input type="text" name="number" required pattern="2557\d{8}" placeholder="255712345678" />
+  <button type="submit">Pata Pairing Code</button>
+</form>
+
+<div id="result"></div>
+
+<script>
+document.getElementById('pairForm').addEventListener('submit', async (e) => {
+  e.preventDefault()
+  const number = e.target.number.value.trim()
+
+  document.getElementById('result').textContent = 'Tafadhali subiri...'
+
+  try {
+    const response = await fetch('/generate-pair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number })
+    })
+    const data = await response.json()
+
+    if (data.error) {
+      document.getElementById('result').innerHTML = `<span style="color:red">${data.error}</span>`
+    } else if (data.code) {
+      document.getElementById('result').innerHTML = `
+        <p>Pairing Code yako ni: <b>${data.code}</b></p>
+        <p>Fungua WhatsApp na scan pairing code ili upokee session yako kama SMS.</p>
+      `
+    }
+  } catch (error) {
+    document.getElementById('result').textContent = 'Kosa limetokea. Jaribu tena.'
+  }
+})
+</script>
+
+</body>
+</html>
