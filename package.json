@@ -1,18 +1,18 @@
 {
-  "name": "whatsapp-bot-pair",
+  "name": "ben-whittaker-tech-bot",
   "version": "1.0.0",
-  "type": "module",
+  "description": "WhatsApp bot using baileys",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "scss": "sass --watch public/style.scss:public/style.css"
+    "start": "node index.js"
   },
+  "author": "Ben Whittaker Tech",
+  "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.16",
-    "express": "^4.18.2",
-    "pino": "^8.16.0",
-    "cors": "^2.8.5"
-  },
-  "devDependencies": {
-    "sass": "^1.63.6"
+    "pino": "^8.14.1",
+    "axios": "^1.4.0",
+    "cheerio": "^1.0.0-rc.12",
+    "@hapi/boom": "^10.0.0"
   }
 }
