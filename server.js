@@ -1,80 +1,123 @@
 import express from 'express'
-import * as baileys from '@whiskeysockets/baileys'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import fs from 'fs/promises'
 import Pino from 'pino'
 import qrcode from 'qrcode'
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  fetchLatestBaileysVersion,
+  DisconnectReason
+} from '@whiskeysockets/baileys'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const app = express()
 const port = process.env.PORT || 3000
 
-let qrCodeData = ''
-let isConnected = false
-let sock = null
+app.use(express.json())
+app.use(express.static(path.join(__dirname, 'public')))
 
-async function startSock() {
-  const { state, saveCreds } = await baileys.useMultiFileAuthState('auth_info')
-  const { version } = await baileys.fetchLatestBaileysVersion()
-
-  sock = baileys.makeWASocket({
+// Bot kuu itakayotuma sessions kwa users
+let mainSock = null
+async function startMainSock() {
+  const { state, saveCreds } = await useMultiFileAuthState('main_auth')
+  const { version } = await fetchLatestBaileysVersion()
+  mainSock = makeWASocket({
     version,
-    printQRInTerminal: false,
     auth: state,
-    logger: Pino({ level: 'silent' })
+    printQRInTerminal: true,
+    logger: Pino({ level: 'silent' }),
   })
-
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
-      qrCodeData = await qrcode.toDataURL(qr)
-      console.log('Tafadhali tembelea /pair kuona QR code')
-      isConnected = false
+  mainSock.ev.on('connection.update', (update) => {
+    const { connection, lastDisconnect } = update
+    if(connection === 'close') {
+      const statusCode = lastDisconnect?.error?.output?.statusCode
+      console.log('Main sock disconnected:', statusCode)
+      if(statusCode !== DisconnectReason.loggedOut) {
+        startMainSock()
+      }
     }
-
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== baileys.DisconnectReason.loggedOut
-      console.log('Connection imekatika:', lastDisconnect?.error, ', kujaribu kuungana tena:', shouldReconnect)
-      isConnected = false
-      qrCodeData = ''
-      if (shouldReconnect) startSock()
-    } else if (connection === 'open') {
-      console.log('Bot imeungana kwa mafanikio.')
-      isConnected = true
-      qrCodeData = ''
+    if(connection === 'open') {
+      console.log('Main sock connected')
     }
   })
-
-  sock.ev.on('creds.update', saveCreds)
-
-  // Mfano wa message listener: jibu ping kwa pong
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return
-    const msg = messages[0]
-    if (!msg.message || msg.key.fromMe) return
-
-    const messageContent = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
-    if (messageContent.toLowerCase() === '!ping') {
-      await sock.sendMessage(msg.key.remoteJid, { text: 'pong' }, { quoted: msg })
-    }
-  })
+  mainSock.ev.on('creds.update', saveCreds)
 }
+startMainSock()
 
-startSock()
+// Map ya ku-track pair requests: number => sock instance
+const pairings = new Map()
 
-app.get('/', (req, res) => {
-  res.send(`<h2>Ben Whittaker Tech QR Site</h2><p>Tafadhali tembelea <a href="/pair">/pair</a> kuona QR Code ya ku-scan.</p>`)
-})
+app.post('/generate-pair', async (req, res) => {
+  try {
+    const { number } = req.body
+    if (!number || !number.startsWith('255')) {
+      return res.status(400).json({ error: 'Tumia format sahihi ya namba: 2557XXXXXXX' })
+    }
+    if(pairings.has(number)) {
+      return res.status(400).json({ error: 'Ombi tayari limeanza, subiri.' })
+    }
 
-app.get('/pair', (req, res) => {
-  if (qrCodeData) {
-    res.send(`<h2>Scan QR Code hapa chini</h2><img src="${qrCodeData}" /><p>Ben Whittaker Tech WhatsApp Bot</p>`)
-  } else {
-    res.send('QR haijapatikana bado. Tafadhali refresh ukurasa baada ya sekunde chache.')
-  }
-})
+    const folder = path.join(__dirname, 'auth_sessions', number)
+    await fs.mkdir(folder, { recursive: true })
 
-app.get('/status', (req, res) => {
-  if (isConnected) {
-    res.send('<h2>Status: Bot iko connected sasa.</h2>')
-  } else {
-    res.send('<h2>Status: Bot haipo au haijaunda connection bado.</h2>')
+    const { state, saveCreds } = await useMultiFileAuthState(folder)
+    const { version } = await fetchLatestBaileysVersion()
+
+    const sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false,
+      logger: Pino({ level: 'silent' }),
+      browser: ['BenWhittakerBot', 'Chrome', '1.0']
+    })
+
+    // Tumia event listener
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, pairingCode, lastDisconnect } = update
+      if (pairingCode) {
+        pairings.set(number, sock)
+        return res.json({ code: pairingCode })
+      }
+      if (connection === 'open') {
+        await saveCreds()
+        // Tuma creds.json kwa user kupitia mainSock
+        const credsPath = path.join(folder, 'creds.json')
+        const jid = `${number}@s.whatsapp.net`
+
+        if (mainSock) {
+          try {
+            await mainSock.sendMessage(jid, {
+              document: { url: credsPath },
+              fileName: 'ben-whittaker-session.json',
+              mimetype: 'application/json',
+              caption: 'Session yako ya Ben Whittaker Bot imefika. Hifadhi kwa usalama.'
+            })
+            console.log(`✅ Session ya ${number} imetumwa kwa WhatsApp.`)
+          } catch (e) {
+            console.error('Kosa kutuma session:', e.message)
+          }
+        }
+
+        pairings.delete(number)
+        sock.end()
+      }
+      if(connection === 'close') {
+        const statusCode = lastDisconnect?.error?.output?.statusCode
+        if(statusCode === DisconnectReason.loggedOut) {
+          await fs.rm(folder, { recursive: true, force: true })
+        }
+        pairings.delete(number)
+      }
+    })
+
+    sock.ev.on('creds.update', saveCreds)
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ error: 'Tatizo limetokea' })
   }
 })
 
