@@ -1,126 +1,51 @@
-import express from 'express'
-import { default as makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys'
-import Pino from 'pino'
-import qrcode from 'qrcode'
+import express from 'express' import { default as makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys' import Pino from 'pino' import qrcode from 'qrcode' import fs from 'fs' import path from 'path' import { fileURLToPath } from 'url' import { randomUUID } from 'crypto'
 
-const app = express()
-const port = process.env.PORT || 10000
+const __filename = fileURLToPath(import.meta.url) const __dirname = path.dirname(__filename)
 
-app.use(express.json())
-app.use(express.static('public'))
+const app = express() const port = process.env.PORT || 3000 app.use(express.json()) app.use(express.static('public'))
 
-let qrCodeData = ''
-let isConnected = false
-let sock = null
-const pairCodes = new Map()
+let pairCodes = {} let activeSessions = {} let sock = null
 
-async function startSock() {
-  const { state, saveCreds } = await useMultiFileAuthState('session')
-  const { version } = await fetchLatestBaileysVersion()
+async function startSock() { const { state, saveCreds } = await useMultiFileAuthState('session') const { version } = await fetchLatestBaileysVersion()
 
-  sock = makeWASocket({
-    version,
-    printQRInTerminal: false,
-    auth: state,
-    logger: Pino({ level: 'silent' }),
-  })
+sock = makeWASocket({ version, printQRInTerminal: false, auth: state, logger: Pino({ level: 'silent' }) })
 
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
-      qrCodeData = await qrcode.toDataURL(qr)
-      console.log('QR code updated, visit / to scan it')
-      isConnected = false
-    }
+sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => { if (qr) { const imgPath = path.join(__dirname, 'public/qrscan.png') await qrcode.toFile(imgPath, qr) console.log('Scan QR at: /qrscan.png') }
 
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
-      console.log('Connection closed:', lastDisconnect?.error, ', reconnecting:', shouldReconnect)
-      isConnected = false
-      qrCodeData = ''
-      if (shouldReconnect) startSock()
-    } else if (connection === 'open') {
-      console.log('Bot connected successfully.')
-      isConnected = true
-      qrCodeData = ''
-    }
-  })
-
-  sock.ev.on('creds.update', saveCreds)
-
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return
-    const msg = messages[0]
-    if (!msg.message || msg.key.fromMe) return
-
-    const messageContent = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
-    if (messageContent.toLowerCase() === '!ping') {
-      await sock.sendMessage(msg.key.remoteJid, { text: 'pong' }, { quoted: msg })
-    }
-  })
+if (connection === 'close') {
+  const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
+  if (shouldReconnect) startSock()
 }
+
+if (connection === 'open') {
+  console.log('Connected')
+}
+
+})
+
+sock.ev.on('creds.update', saveCreds)
+
+sock.ev.on('messages.upsert', async ({ messages }) => { const msg = messages[0] if (!msg.message || msg.key.fromMe) return const jid = msg.key.remoteJid const messageContent = msg.message?.conversation || msg.message?.extendedTextMessage?.text || ''
+
+if (messageContent.toLowerCase().startsWith('!pair')) {
+  const code = Math.floor(10000000 + Math.random() * 90000000).toString()
+  pairCodes[code] = jid
+  await sock.sendMessage(jid, { text: `Code yako ni: ${code}. Ingiza kwenye tovuti ili upokee session.` })
+}
+
+}) }
+
+app.post('/api/request-session', async (req, res) => { const { code } = req.body const jid = pairCodes[code] if (!jid) return res.status(400).json({ success: false, message: 'Code si sahihi au imeisha muda.' })
+
+const sessionFile = path.join(__dirname, 'session/creds.json') if (!fs.existsSync(sessionFile)) return res.status(500).json({ success: false, message: 'Session haipo bado.' })
+
+await sock.sendMessage(jid, { document: { url: sessionFile }, mimetype: 'application/json', fileName: 'your-session.json', caption: 'Umeunganishwa na bot. Session yako iko hapa, unaweza ku-deploy bot yako.' })
+
+delete pairCodes[code] res.json({ success: true, message: 'Session imetumwa kupitia WhatsApp.' }) })
+
+app.get('/status', (req, res) => { res.send('<h2>Status: Bot inafanya kazi.</h2><p>Support: +255760317060</p>') })
 
 startSock()
 
-app.get('/api/qr', (req, res) => {
-  res.json({ qr: qrCodeData || null })
-})
+app.listen(port, () => { console.log(Server is running on http://localhost:${port}) })
 
-app.post('/api/generate-code', (req, res) => {
-  const { number } = req.body
-  if (!number || !number.match(/^\+?\d+$/)) {
-    return res.status(400).json({ success: false, error: 'Invalid number. Please enter with country code.' })
-  }
-
-  const code = Math.floor(10000000 + Math.random() * 90000000).toString()
-  pairCodes.set(number, { code, timestamp: Date.now() })
-
-  if (isConnected) {
-    sock.sendMessage(number + '@s.whatsapp.net', { text: `Your pair code is: ${code}` }).catch(console.error)
-  }
-
-  res.json({ success: true, pairCode: code })
-})
-
-app.post('/api/verify-code', async (req, res) => {
-  const { number, pairCode } = req.body
-  if (!number || !pairCode) {
-    return res.status(400).json({ success: false, error: 'Number and pairCode are required.' })
-  }
-
-  const record = pairCodes.get(number)
-  if (!record) {
-    return res.status(400).json({ success: false, error: 'No pair code found for this number.' })
-  }
-
-  if (record.code !== pairCode) {
-    return res.status(400).json({ success: false, error: 'Invalid pair code.' })
-  }
-
-  if (Date.now() - record.timestamp > 10 * 60 * 1000) {
-    pairCodes.delete(number)
-    return res.status(400).json({ success: false, error: 'Pair code expired.' })
-  }
-
-  if (!isConnected) {
-    return res.status(400).json({ success: false, error: 'Bot is not connected.' })
-  }
-
-  try {
-    await sock.sendMessage(number + '@s.whatsapp.net', {
-      text: `Bot is connected and session is active for ${number}.`
-    })
-
-    res.json({ success: true, message: 'Session confirmed and message sent to WhatsApp.' })
-  } catch (error) {
-    console.error('Error sending session message:', error)
-    res.status(500).json({ success: false, error: 'Failed to send session message via WhatsApp.' })
-  }
-})
-
-app.get('/status', (req, res) => {
-  res.send(`<h2>Status: Bot is ${isConnected ? 'connected' : 'not connected'}.</h2>`)
-})
-
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`)
-})
