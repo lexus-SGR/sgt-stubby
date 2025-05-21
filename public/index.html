@@ -1,51 +1,133 @@
 <!DOCTYPE html>
-<html lang="sw">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Ben Whittaker Tech - Pair Bot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ben Whittaker Tech</title>
   <style>
-    body { font-family: sans-serif; background: #f7f7f7; text-align:center; padding: 30px; }
-    img { border-radius: 10px; max-width: 200px; }
-    #qr img { border: 2px solid #333; margin: 15px 0; }
-    #pair-code { font-size: 1.5em; margin: 20px 0; letter-spacing: 5px; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('https://i.ibb.co/4RwqH7hQ/bmb-xmd.jpg') no-repeat center center fixed,
+                  url('https://i.ibb.co/Vcz54n3r/bmb-xmd.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+    }
+    .overlay {
+      background-color: rgba(0, 0, 0, 0.6);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .box {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 30px;
+      border-radius: 15px;
+      text-align: center;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 0 20px gold;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: gold;
+    }
+    button, a.btn {
+      display: inline-block;
+      margin: 10px 5px;
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: gold;
+      color: black;
+      text-decoration: none;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    a.btn:hover, button:hover {
+      background-color: #fcd900;
+    }
+    .support {
+      margin-top: 25px;
+    }
+    .support a img {
+      width: 40px;
+      height: 40px;
+      margin: 0 8px;
+    }
   </style>
 </head>
 <body>
-  <h1>Ben Whittaker Tech - Link WhatsApp Bot</h1>
-  <img src="https://github.com/lexus-SGR/sgt-stubby/blob/dfdb617f379d4b8ac066f1a7becb67b0344e8002/public/ben-whittaker.jpg?raw=true" alt="Ben Whittaker" />
-  
-  <div id="pair-code">Pair code: <span style="font-weight:bold">Inapakia...</span></div>
-  <div id="qr">Subiri QR code...</div>
-
-  <p>Tuma *pair code* hapo juu kwenye WhatsApp ya bot (tumia *!pair* kuanza).</p>
-  <p>Kisha scan QR hapa chini kuunganisha device yako.</p>
+  <div class="overlay">
+    <div class="box">
+      <h1>Ben Whittaker Tech</h1>
+      <div id="loginSection">
+        <button onclick="login()">Login with GitHub</button>
+      </div>
+      <div id="dashboard" style="display: none;">
+        <a class="btn" href="https://github.com/omari3-blif/BEN-WHITTAKER-TECH-BOT" target="_blank">REPO SITE</a>
+        <a class="btn" href="https://sgt-stubby-2.onrender.com/pair.html" target="_blank">PAIR CODE</a>
+        <a class="btn" href="https://whatsapp.com/channel/0029Vb6JhPyBKfhv6j6msk3t" target="_blank">CHANNEL</a>
+        <a class="btn" href="https://wa.me/255760317060" target="_blank">CALL ME</a>
+        <div class="support">
+          <h3 style="margin: 20px 0 10px;">SUPPORT DEVELOPER</h3>
+          <a href="https://www.facebook.com/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="Facebook">
+          </a>
+          <a href="https://www.youtube.com/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube">
+          </a>
+          <a href="https://www.instagram.com/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram">
+          </a>
+          <a href="https://github.com/omari3-blif" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/733/733553.png" alt="GitHub">
+          </a>
+          <a href="https://t.me/" target="_blank">
+            <img src="https://cdn-icons-png.flaticon.com/512/2111/2111646.png" alt="Telegram">
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    async function fetchPairCode() {
-      const res = await fetch('/api/pair-code')
-      const data = await res.json()
-      document.getElementById('pair-code').querySelector('span').textContent = data.pairCode
-      return data.pairCode
-    }
+    function login() {
+      const username = prompt("Enter your GitHub username:");
+      if (!username) return;
 
-    async function fetchQR() {
-      const res = await fetch('/api/qr')
-      const data = await res.json()
-      if (data.qr) {
-        document.getElementById('qr').innerHTML = `<img src="${data.qr}" width="250" />`
-      } else {
-        document.getElementById('qr').textContent = 'QR bado haijapatikana...'
+      if (username.toLowerCase() === "omari3-blif") {
+        alert("Please use your own GitHub account to continue.");
+        return;
       }
-    }
 
-    async function main() {
-      await fetchPairCode()
-      await fetchQR()
-      setInterval(fetchQR, 3000)
-    }
+      fetch(`https://api.github.com/users/${username}/repos`)
+        .then(response => response.json())
+        .then(data => {
+          const forked = data.some(repo =>
+            repo.fork && repo.full_name.toLowerCase() === `${username.toLowerCase()}/ben-whittaker-tech-bot`
+          );
 
-    main()
+          if (forked) {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+          } else {
+            alert("You must fork the repository first to gain access.");
+            window.open("https://github.com/omari3-blif/BEN-WHITTAKER-TECH-BOT/fork", "_blank");
+          }
+        })
+        .catch(() => {
+          alert("An error occurred while checking the repository.");
+        });
+    }
   </script>
-
 </body>
 </html>
