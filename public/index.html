@@ -2,23 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Ben Whittaker Tech - Home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WhatsApp Bot Pairing</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin-top: 50px;
-      background: #f0f0f0;
-    }
-    a {
-      font-size: 20px;
-      text-decoration: none;
-      color: #007bff;
-    }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #qr img { max-width: 300px; }
+    form { margin-top: 20px; }
+    input, button { padding: 8px; margin: 5px 0; width: 100%; max-width: 300px; }
+    .status { margin-top: 15px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>Welcome to Ben Whittaker Tech WhatsApp Bot</h1>
-  <p>Please visit the <a href="/pair">/pair</a> page to scan the QR code and connect the bot.</p>
+
+  <h1>WhatsApp Bot Pairing</h1>
+
+  <div id="qr">
+    <h3>Scan QR code with WhatsApp to login</h3>
+    <div id="qrCodeContainer">Loading QR code...</div>
+  </div>
+
+  <hr />
+
+  <h3>Step 1: Generate Pair Code</h3>
+  <form id="generateForm">
+    <input type="text" id="generateNumber" placeholder="Enter your WhatsApp number (e.g. +2557...)" required />
+    <button type="submit">Generate Pair Code</button>
+  </form>
+  <div id="generateStatus" class="status"></div>
+
+  <hr />
+
+  <h3>Step 2: Verify Pair Code</h3>
+  <form id="verifyForm">
+    <input type="text" id="verifyNumber" placeholder="Enter your WhatsApp number (e.g. +2557...)" required />
+    <input type="text" id="pairCode" placeholder="Enter pair code (8 digits)" required maxlength="8" />
+    <button type="submit">Verify Code</button>
+  </form>
+  <div id="verifyStatus" class="status"></div>
+
+  <script>
+    // Poll server for QR code every 5 seconds
+    async function fetchQR() {
+      try {
+        const res = await fetch('/api/qr')
+        const data = await res.json()
+        const container = document.getElementById('qrCodeContainer')
+        if (data.qr) {
+          container.innerHTML = `<img src="${data.qr}" alt="QR Code" />`
+        } else {
+          container.innerHTML = 'QR code not available or already scanned.'
+        }
+      } catch (err) {
+        console.error(err)
+        document.getElementById('qrCodeContainer').innerText = 'Failed to load QR code.'
+      }
+    }
+    fetchQR()
+    setInterval(fetchQR, 5000)
+
+    // Generate pair code
+    document.getElementById('generateForm').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const number = document.getElementById('generateNumber').value.trim()
+      const status = document.getElementById('generateStatus')
+      status.textContent = 'Generating pair code...'
+      try {
+        const res = await fetch('/api/generate-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number })
+        })
+        const data = await res.json()
+        if (data.success) {
+          status.textContent = `Pair code sent via WhatsApp: ${data.pairCode}`
+        } else {
+          status.textContent = 'Error: ' + (data.error || 'Unknown error')
+        }
+      } catch (err) {
+        status.textContent = 'Failed to generate pair code.'
+      }
+    })
+
+    // Verify pair code
+    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+      e.preventDefault()
+      const number = document.getElementById('verifyNumber').value.trim()
+      const pairCode = document.getElementById('pairCode').value.trim()
+      const status = document.getElementById('verifyStatus')
+      status.textContent = 'Verifying pair code...'
+      try {
+        const res = await fetch('/api/verify-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ number, pairCode })
+        })
+        const data = await res.json()
+        if (data.success) {
+          status.textContent = data.message || 'Pair code verified successfully!'
+        } else {
+          status.textContent = 'Error: ' + (data.error || 'Unknown error')
+        }
+      } catch (err) {
+        status.textContent = 'Failed to verify pair code.'
+      }
+    })
+  </script>
 </body>
 </html>
