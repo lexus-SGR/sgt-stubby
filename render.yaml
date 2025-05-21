@@ -1,10 +1,11 @@
 services:
   - type: web
-    name: ben-whittaker-tech-bot
+    name: ben-tech-pair-site
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: node index.js
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    envVars:
+      - key: PORT
+        value: "10000"   # Render usually sets PORT automatically, hii ni optional
     autoDeploy: true
-    branch: main
-    healthCheckPath: /
