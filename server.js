@@ -1,5 +1,5 @@
 import express from 'express'
-import { default as makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys'
+import * as baileys from '@whiskeysockets/baileys'
 import Pino from 'pino'
 import qrcode from 'qrcode'
 
@@ -11,10 +11,10 @@ let isConnected = false
 let sock = null
 
 async function startSock() {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info')
-  const { version } = await fetchLatestBaileysVersion()
+  const { state, saveCreds } = await baileys.useMultiFileAuthState('auth_info')
+  const { version } = await baileys.fetchLatestBaileysVersion()
 
-  sock = makeWASocket({
+  sock = baileys.makeWASocket({
     version,
     printQRInTerminal: false,
     auth: state,
@@ -29,7 +29,7 @@ async function startSock() {
     }
 
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
+      const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== baileys.DisconnectReason.loggedOut
       console.log('Connection imekatika:', lastDisconnect?.error, ', kujaribu kuungana tena:', shouldReconnect)
       isConnected = false
       qrCodeData = ''
