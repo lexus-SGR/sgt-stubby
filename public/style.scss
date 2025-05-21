@@ -1,0 +1,75 @@
+$gold: #d4af37;
+$black-overlay: rgba(0, 0, 0, 0.7);
+$white: #fff;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: url('lexus AI HUB.png') no-repeat center center fixed;
+  background-size: cover;
+  color: $white;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  background-color: $black-overlay;
+  padding: 30px;
+  border-radius: 15px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 0 15px $gold;
+  text-align: center;
+}
+
+h1 {
+  color: $gold;
+  margin-bottom: 20px;
+  letter-spacing: 2px;
+  font-size: 28px;
+}
+
+form label {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+form input[type='text'] {
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 15px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+form button {
+  background-color: $gold;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  color: black;
+  transition: background-color 0.3s ease;
+}
+
+form button:hover {
+  background-color: lighten($gold, 15%);
+}
+
+.result {
+  margin-top: 25px;
+  font-weight: 600;
+  font-size: 18px;
+  color: $gold;
+}
