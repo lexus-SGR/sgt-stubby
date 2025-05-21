@@ -1,3 +1,4 @@
+require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const P = require("pino");
@@ -12,7 +13,17 @@ const {
 const OWNER_JID = "255760317060@s.whatsapp.net";
 const PREFIX = "!";
 
-const antiLinkGroups = {};
+const DEFAULT_ANTILINK = process.env.ANTILINK === "on";
+
+const antiLinkGroups = new Proxy({}, {
+  get(target, key) {
+    if (!(key in target)) {
+      target[key] = { enabled: DEFAULT_ANTILINK, action: "warn" };
+    }
+    return target[key];
+  }
+});
+
 const antiDeleteGroups = {};
 
 async function isBotAdmin(sock, groupId) {
@@ -49,7 +60,6 @@ async function startBot() {
     } else if (connection === "open") {
       console.log("✅ Bot connected!");
 
-      // Send welcome message to owner when bot is online
       const welcomeMsg = `
 *WELCOME TO BEN WHITTAKER TECH BOT* 🔰
 
@@ -63,12 +73,10 @@ async function startBot() {
 
 📌 *Need assistance?* Just type *${PREFIX}support*.
       `;
-
       await sock.sendMessage(OWNER_JID, { text: welcomeMsg });
     }
   });
 
-  // Load commands from commands folder
   const commands = new Map();
   const commandsPath = path.join(__dirname, "commands");
   if (fs.existsSync(commandsPath)) {
@@ -86,28 +94,24 @@ async function startBot() {
       const isGroup = from.endsWith("@g.us");
       const sender = msg.key.participant || msg.key.remoteJid;
 
-      // === AUTO VIEW STATUS ===
       if (from === "status@broadcast") {
         try {
           await sock.sendMessage("status@broadcast", {
             viewOnce: { statusJid: sender }
           });
         } catch {}
-        continue; // no need to process commands for status messages
+        continue;
       }
 
-      // Read message text
       const body = msg.message?.conversation ||
                    msg.message?.extendedTextMessage?.text ||
                    msg.message?.imageMessage?.caption || "";
 
-      // Fake typing presence
       await sock.sendPresenceUpdate("recording", from);
       setTimeout(() => {
         sock.sendPresenceUpdate("available", from);
       }, 5000);
 
-      // === ANTI-LINK in groups ===
       if (isGroup && antiLinkGroups[from]?.enabled) {
         const linkRegex = /https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{20,}/;
         if (linkRegex.test(body) && sender !== OWNER_JID) {
@@ -135,11 +139,46 @@ async function startBot() {
         }
       }
 
-      // === Command handler ===
       if (!body.startsWith(PREFIX)) continue;
 
       const commandName = body.slice(PREFIX.length).split(/\s+/)[0].toLowerCase();
       const args = body.trim().split(/\s+/).slice(1);
+
+      // === ANTILINK COMMAND ===
+      if (commandName === "antilink") {
+        if (!isGroup) {
+          await sock.sendMessage(from, { text: "🚫🔗🛡 This command can only be used in groups." });
+          return;
+        }
+
+        const isAdmin = await isBotAdmin(sock, from);
+        if (!isAdmin) {
+          await sock.sendMessage(from, { text: "🚫🔗🛡 I need to be admin to manage Anti-Link settings." });
+          return;
+        }
+
+        const input = args[0]?.toLowerCase();
+        const setting = antiLinkGroups[from];
+
+        if (input === "on") {
+          if (setting.enabled) {
+            await sock.sendMessage(from, { text: "🚫🔗🛡 Anti-Link is already ON." });
+          } else {
+            setting.enabled = true;
+            await sock.sendMessage(from, { text: "✅ Anti-Link is now *enabled*." });
+          }
+        } else if (input === "off") {
+          if (!setting.enabled) {
+            await sock.sendMessage(from, { text: "🚫🔗🛡 Anti-Link is already OFF." });
+          } else {
+            setting.enabled = false;
+            await sock.sendMessage(from, { text: "❌ Anti-Link has been *disabled*." });
+          }
+        } else {
+          await sock.sendMessage(from, { text: `🔧 Usage: *${PREFIX}antilink on/off*` });
+        }
+        return;
+      }
 
       if (commands.has(commandName)) {
         try {
@@ -156,11 +195,9 @@ async function startBot() {
     }
   });
 
-  // === ANTI-DELETE EVENT ===
   sock.ev.on("messages.delete", async (message) => {
     const { key, participant, remoteJid } = message;
-
-    if (!remoteJid.endsWith("@g.us")) return; // only group
+    if (!remoteJid.endsWith("@g.us")) return;
 
     if (antiDeleteGroups[remoteJid]?.enabled) {
       const isAdmin = await isBotAdmin(sock, remoteJid);
@@ -180,7 +217,6 @@ async function startBot() {
       }
     }
   });
-
 }
 
 startBot();
