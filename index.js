@@ -6,7 +6,8 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore
+  makeCacheableSignalKeyStore,
+  generatePairCode
 } = require("@whiskeysockets/baileys");
 
 const OWNER_JID = "255760317060@s.whatsapp.net";
@@ -22,7 +23,7 @@ async function startBot() {
 
   const sock = makeWASocket({
     version,
-    printQRInTerminal: false,
+    printQRInTerminal: false,  // Tunazima QR scan printing
     auth: {
       creds: state.creds,
       keys: makeCacheableSignalKeyStore(state.keys, P({ level: "silent" }))
@@ -30,12 +31,24 @@ async function startBot() {
     logger: P({ level: "silent" })
   });
 
+  // Generate pair code
+  const pairCode = await generatePairCode(sock);
+  console.log("🔑 Paircode generated:", pairCode);
+  
+  // Notify owner with pair code so they can scan it in their client
+  await sock.sendMessage(OWNER_JID, { text: `🤖 *Ben Whittaker Tech Bot*\n\nPaircode for login:\n\n${pairCode}\n\nUse this paircode to connect the bot.` });
+
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "close") {
       const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) startBot();
+      if (shouldReconnect) {
+        console.log("⚠️ Connection closed, reconnecting...");
+        startBot();
+      } else {
+        console.log("❌ Connection closed. You are logged out.");
+      }
     } else if (connection === "open") {
       console.log("✅ Bot connected!");
 
@@ -53,13 +66,11 @@ async function startBot() {
 📌 *Need assistance?* Just type *${PREFIX}support*.
       `;
 
-      await sock.sendMessage(OWNER_JID, {
-        text: menu
-      });
+      await sock.sendMessage(OWNER_JID, { text: menu });
     }
   });
 
-  // Load commands from commands/
+  // Your commands loading code here
   const commands = new Map();
   const commandsPath = path.join(__dirname, "commands");
   if (fs.existsSync(commandsPath)) {
@@ -72,7 +83,6 @@ async function startBot() {
     console.log("Created commands folder.");
   }
 
-  // Listen for incoming messages
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
