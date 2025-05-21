@@ -2,17 +2,34 @@ import express from 'express'
 import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys'
 import Pino from 'pino'
 import qrcode from 'qrcode'
+import sassMiddleware from 'node-sass-middleware'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+// Convert ES Module __dirname
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const app = express()
 const port = process.env.PORT || 3000
 
+// Sass middleware – compile SCSS to CSS
+app.use(
+  sassMiddleware({
+    src: path.join(__dirname, 'public', 'scss'),
+    dest: path.join(__dirname, 'public'),
+    debug: true,
+    outputStyle: 'compressed',
+    prefix: '/', // So /style.css works
+  })
+)
+
 app.use(express.json())
 app.use(express.static('public'))
 
-// Hifadhi pair codes na status zao
-const pairCodes = new Map() // key: code, value: { connected: bool, jid: string, sessionId: string|null }
+// Map for pair codes
+const pairCodes = new Map()
 
-// Generate random 8 digit code
 function generatePairCode() {
   return Math.floor(10000000 + Math.random() * 90000000).toString()
 }
@@ -54,7 +71,6 @@ async function startSock() {
 
   sock.ev.on('creds.update', saveCreds)
 
-  // Listen for incoming messages
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
     const msg = messages[0]
@@ -62,16 +78,12 @@ async function startSock() {
 
     const messageText = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
 
-    // Kama message ni pair code halali
     if (pairCodes.has(messageText)) {
-      // Mark user connected with this pair code
       const pairInfo = pairCodes.get(messageText)
       pairInfo.connected = true
       pairInfo.jid = msg.key.remoteJid
-      // Generate session ID (example, random string)
       pairInfo.sessionId = Math.random().toString(36).slice(2, 10).toUpperCase()
 
-      // Send confirmation with session ID
       await sock.sendMessage(msg.key.remoteJid, {
         text: `Umeunganishwa na bot kwa pair code: ${messageText}\nSession ID yako ni: ${pairInfo.sessionId}\nHifadhi session hii kwa ajili ya deploy.`
       }, { quoted: msg })
@@ -80,7 +92,6 @@ async function startSock() {
       return
     }
 
-    // Kama ni command !pair basi tuma pair code mpya
     if (messageText.toLowerCase() === '!pair') {
       const newCode = generatePairCode()
       pairCodes.set(newCode, { connected: false, jid: null, sessionId: null })
@@ -89,7 +100,6 @@ async function startSock() {
       return
     }
 
-    // Mfano wa ping
     if (messageText.toLowerCase() === '!ping') {
       await sock.sendMessage(msg.key.remoteJid, { text: 'pong' }, { quoted: msg })
       return
@@ -99,16 +109,10 @@ async function startSock() {
 
 startSock()
 
-// API kuonyesha QR code (for browser)
 app.get('/api/qr', (req, res) => {
-  if (qrCodeData) {
-    res.json({ qr: qrCodeData })
-  } else {
-    res.json({ qr: null })
-  }
+  res.json({ qr: qrCodeData || null })
 })
 
-// API kuonyesha pair code mpya kwa browser
 app.get('/api/pair-code', (req, res) => {
   const code = generatePairCode()
   pairCodes.set(code, { connected: false, jid: null, sessionId: null })
