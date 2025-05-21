@@ -1,28 +1,14 @@
 module.exports = {
   name: "antidelete",
-  async execute(sock, msg, args, context) {
-    const { antiDeleteGroups } = context;
-    const from = msg.key.remoteJid;
-    const sender = msg.key.participant || msg.key.remoteJid;
+  description: "Repost deleted messages.",
+  emoji: "♻️",
+  async execute(sock, msg, args, isOwner, db) {
+    if (!isOwner) return sock.sendMessage(msg.key.remoteJid, { text: "Owner only command." });
 
-    if (!from.endsWith("@g.us")) {
-      return sock.sendMessage(from, { text: "❌ This command is only for groups." });
-    }
+    const status = args[0];
+    if (status !== "on" && status !== "off") return sock.sendMessage(msg.key.remoteJid, { text: "Use: !antidelete on/off" });
 
-    const action = args[0];
-    if (!["on", "off"].includes(action)) {
-      return sock.sendMessage(from, {
-        text: "Usage: !antidelete [on/off]"
-      });
-    }
-
-    antiDeleteGroups[from] = {
-      enabled: action === "on"
-    };
-
-    await sock.sendMessage(from, {
-      text: `✅ Anti-delete has been turned *${action}* by *@${sender.split("@")[0]}*.`,
-      mentions: [sender]
-    });
+    db.antidelete = status === "on";
+    await sock.sendMessage(msg.key.remoteJid, { text: `Anti-delete is now *${status}*`, react: { text: "♻️", key: msg.key } });
   }
 };

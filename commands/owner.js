@@ -1,16 +1,21 @@
-const OWNER_JID = "255760317060@s.whatsapp.net";
-
 module.exports = {
   name: "owner",
-  description: "Shows bot owner's contact.",
+  description: "Get the owner's contact info.",
   emoji: "👑",
   async execute(sock, msg) {
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "👑", key: msg.key } });
+    const ownerJid = "255760317060@s.whatsapp.net"; // your owner number
     await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: "👑", key: msg.key },
+      contacts: { 
+        displayName: "Bot Owner", 
+        contacts: [{ 
+          vcard: `BEGIN:VCARD
+VERSION:3.0
+FN:Bot Owner
+TEL;waid=${ownerJid.split("@")[0]}:${ownerJid.split("@")[0]}
+END:VCARD`
+        }]
+      }
     });
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: `👑 Bot Owner: @${OWNER_JID.split("@")[0]}`,
-      mentions: [OWNER_JID],
-    });
-  },
+  }
 };

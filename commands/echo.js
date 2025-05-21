@@ -1,12 +1,11 @@
 module.exports = {
   name: "echo",
-  description: "Echoes back the text sent.",
+  description: "Repeat your text.",
   emoji: "🗣️",
   async execute(sock, msg, args) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: { text: "🗣️", key: msg.key }
-    });
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "🗣️", key: msg.key } });
     if (!args.length) return await sock.sendMessage(msg.key.remoteJid, { text: "Please provide text to echo." });
-    await sock.sendMessage(msg.key.remoteJid, { text: args.join(" ") });
+    const text = args.join(" ");
+    await sock.sendMessage(msg.key.remoteJid, { text });
   }
 };

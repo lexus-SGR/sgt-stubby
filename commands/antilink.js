@@ -1,61 +1,29 @@
-const antiLinkDB = {};
-
 module.exports = {
   name: "antilink",
-  description: "Enable or disable anti-link system in groups",
-  async execute(sock, msg, args, from, sender, isGroup, groupAdmins) {
-    if (!isGroup) {
-      await sock.sendMessage(from, { text: "⚠️ This command only works in groups." });
-      return;
-    }
+  description: "Enable or disable anti-link in group.",
+  emoji: "🔗",
+  async execute(sock, msg, args, isAdmin, isBotAdmin, groupMetadata, db) {
+    const groupId = msg.key.remoteJid;
 
-    if (!groupAdmins.includes(sender)) {
-      await sock.sendMessage(from, { text: "⛔ Only admins can change Anti-Link settings." });
-      return;
-    }
+    if (!groupId.endsWith("@g.us"))
+      return await sock.sendMessage(groupId, { text: "This command only works in groups." });
 
-    antiLinkDB[from] = antiLinkDB[from] || { enabled: false, action: "warn" };
+    if (!isAdmin)
+      return await sock.sendMessage(groupId, { text: "You must be an admin to toggle anti-link." });
 
-    if (!args[0]) {
-      return await sock.sendMessage(from, {
-        text: `🛡️ *Anti-Link Settings:*\n\nStatus: ${antiLinkDB[from].enabled ? "✅ ON" : "❌ OFF"}\nAction: ${antiLinkDB[from].action.toUpperCase()}\n\nCommands:\n• !antilink on/off\n• !antilink action warn/remove`
-      });
-    }
+    if (!isBotAdmin)
+      return await sock.sendMessage(groupId, { text: "Bot needs admin rights to enforce anti-link." });
 
-    const subCmd = args[0].toLowerCase();
+    const status = args[0]?.toLowerCase();
+    if (!["on", "off"].includes(status))
+      return await sock.sendMessage(groupId, { text: "Usage: !antilink on/off" });
 
-    if (subCmd === "on") {
-      if (antiLinkDB[from].enabled) {
-        await sock.sendMessage(from, {
-          text: "⚠️ Anti-Link is already *ON* in this group."
-        });
-      } else {
-        antiLinkDB[from].enabled = true;
-        await sock.sendMessage(from, { text: "✅ Anti-Link has been *enabled* for this group." });
-        await sock.sendMessage(from, { react: { text: "🛡️", key: msg.key } });
-      }
-    } else if (subCmd === "off") {
-      antiLinkDB[from].enabled = false;
-      await sock.sendMessage(from, { text: "❌ Anti-Link has been *disabled* for this group." });
-      await sock.sendMessage(from, { react: { text: "🔕", key: msg.key } });
-    } else if (subCmd === "action") {
-      if (!args[1]) {
-        await sock.sendMessage(from, { text: "❌ Please choose an action: warn or remove" });
-      } else {
-        const action = args[1].toLowerCase();
-        if (action === "warn" || action === "remove") {
-          antiLinkDB[from].action = action;
-          await sock.sendMessage(from, { text: `✅ Anti-Link action set to *${action}*.` });
-          await sock.sendMessage(from, { react: { text: action === "warn" ? "⚠️" : "🗑️", key: msg.key } });
-        } else {
-          await sock.sendMessage(from, { text: "❌ Invalid action. Use warn/remove." });
-        }
-      }
-    } else {
-      await sock.sendMessage(from, {
-        text: "❌ Invalid subcommand.\nUsage:\n• !antilink on/off\n• !antilink action warn/remove"
-      });
-    }
-  },
-  antiLinkDB
+    db.antilink = db.antilink || {};
+    db.antilink[groupId] = status === "on";
+
+    await sock.sendMessage(groupId, {
+      text: `Anti-link has been *${status.toUpperCase()}* for this group.`,
+      react: { text: "🔗", key: msg.key }
+    });
+  }
 };
