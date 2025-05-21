@@ -1,10 +1,10 @@
-import express from 'express'
-import { 
+import pkg from '@whiskeysockets/baileys'
+const { 
   makeWASocket, 
   DisconnectReason, 
   fetchLatestBaileysVersion, 
-  useSingleFileAuthState 
-} from '@whiskeysockets/baileys'
+  useMultiFileAuthState 
+} = pkg
 import pino from 'pino'
 import cors from 'cors'
 
