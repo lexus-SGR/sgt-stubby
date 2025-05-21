@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Ben Whittaker Tech</title>
+  <title>LEXUS AI HUB</title>
   <style>
     * {
       margin: 0;
@@ -12,13 +12,12 @@
     }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: url('https://i.ibb.co/4RwqH7hQ/bmb-xmd.jpg') no-repeat center center fixed,
-                  url('https://i.ibb.co/Vcz54n3r/bmb-xmd.jpg') no-repeat center center fixed;
+      background: url('lexus AI HUB.png') no-repeat center center fixed;
       background-size: cover;
       color: white;
     }
     .overlay {
-      background-color: rgba(0, 0, 0, 0.6);
+      background-color: rgba(0, 0, 0, 0.65);
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -26,7 +25,7 @@
       padding: 20px;
     }
     .box {
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       padding: 30px;
       border-radius: 15px;
       text-align: center;
@@ -38,6 +37,7 @@
       margin-bottom: 20px;
       font-size: 28px;
       color: gold;
+      letter-spacing: 2px;
     }
     button, a.btn {
       display: inline-block;
@@ -68,30 +68,30 @@
 <body>
   <div class="overlay">
     <div class="box">
-      <h1>Ben Whittaker Tech</h1>
+      <h1>LEXUS AI HUB</h1>
       <div id="loginSection">
         <button onclick="login()">Login with GitHub</button>
       </div>
       <div id="dashboard" style="display: none;">
-        <a class="btn" href="https://github.com/omari3-blif/BEN-WHITTAKER-TECH-BOT" target="_blank">REPO SITE</a>
-        <a class="btn" href="https://sgt-stubby-2.onrender.com/pair.html" target="_blank">PAIR CODE</a>
+        <a class="btn" href="https://github.com/lexus-SGR/sgt-stubby" target="_blank">REPO SITE</a>
+        <a class="btn" href="https://sgt-stubby-2.onrender.com/pair" target="_blank">PAIR CODE</a>
         <a class="btn" href="https://whatsapp.com/channel/0029Vb6JhPyBKfhv6j6msk3t" target="_blank">CHANNEL</a>
-        <a class="btn" href="https://wa.me/255760317060" target="_blank">CALL ME</a>
+        <a class="btn" href="https://wa.me/255767862457" target="_blank">CALL ME</a>
         <div class="support">
           <h3 style="margin: 20px 0 10px;">SUPPORT DEVELOPER</h3>
-          <a href="https://www.facebook.com/" target="_blank">
+          <a href="https://www.facebook.com/profile.php?id=61574674838043" target="_blank">
             <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="Facebook">
           </a>
-          <a href="https://www.youtube.com/" target="_blank">
+          <a href="https://www.youtube.com/@bmb-xmd" target="_blank">
             <img src="https://cdn-icons-png.flaticon.com/512/1384/1384060.png" alt="YouTube">
           </a>
-          <a href="https://www.instagram.com/" target="_blank">
+          <a href="https://www.instagram.com/bmbxmd?igsh=MTg3YzBtdGp2MTAwZA==" target="_blank">
             <img src="https://cdn-icons-png.flaticon.com/512/2111/2111463.png" alt="Instagram">
           </a>
-          <a href="https://github.com/omari3-blif" target="_blank">
+          <a href="https://github.com/bmb200ukiwa" target="_blank">
             <img src="https://cdn-icons-png.flaticon.com/512/733/733553.png" alt="GitHub">
           </a>
-          <a href="https://t.me/" target="_blank">
+          <a href="https://t.me/bmb_xmd" target="_blank">
             <img src="https://cdn-icons-png.flaticon.com/512/2111/2111646.png" alt="Telegram">
           </a>
         </div>
@@ -104,29 +104,10 @@
       const username = prompt("Enter your GitHub username:");
       if (!username) return;
 
-      if (username.toLowerCase() === "omari3-blif") {
-        alert("Please use your own GitHub account to continue.");
-        return;
-      }
-
-      fetch(`https://api.github.com/users/${username}/repos`)
-        .then(response => response.json())
-        .then(data => {
-          const forked = data.some(repo =>
-            repo.fork && repo.full_name.toLowerCase() === `${username.toLowerCase()}/ben-whittaker-tech-bot`
-          );
-
-          if (forked) {
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'block';
-          } else {
-            alert("You must fork the repository first to gain access.");
-            window.open("https://github.com/omari3-blif/BEN-WHITTAKER-TECH-BOT/fork", "_blank");
-          }
-        })
-        .catch(() => {
-          alert("An error occurred while checking the repository.");
-        });
+      // No fork checking, direct access
+      // Just show dashboard after username input
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
     }
   </script>
 </body>
