@@ -1,11 +1,10 @@
 services:
   - type: web
-    name: ben-whittaker-bot
+    name: ben-whittaker-tech-bot
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node index.js
     autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: 18.16.0
+    branch: main
+    healthCheckPath: /
