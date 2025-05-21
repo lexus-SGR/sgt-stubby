@@ -1,13 +1,16 @@
+                                                                       
 const fs = require("fs");
 const path = require("path");
 const P = require("pino");
+const axios = require("axios");
+const cheerio = require("cheerio");
+const { Boom } = require("@hapi/boom");
 const {
   makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore,
-  generatePairCode
+  makeCacheableSignalKeyStore
 } = require("@whiskeysockets/baileys");
 
 const OWNER_JID = "255760317060@s.whatsapp.net";
@@ -21,34 +24,29 @@ async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
   const { version } = await fetchLatestBaileysVersion();
 
-  const sock = makeWASocket({
-    version,
-    printQRInTerminal: false,  // Tunazima QR scan printing
-    auth: {
-      creds: state.creds,
-      keys: makeCacheableSignalKeyStore(state.keys, P({ level: "silent" }))
-    },
-    logger: P({ level: "silent" })
-  });
+const sock = makeWASocket({
+  version,
+  auth: {
+    creds: state.creds,
+    keys: makeCacheableSignalKeyStore(state.keys, P({ level: "silent" }))
+  },
+  logger: P({ level: "silent" })
+});
 
-  // Generate pair code
-  const pairCode = await generatePairCode(sock);
-  console.log("🔑 Paircode generated:", pairCode);
-  
-  // Notify owner with pair code so they can scan it in their client
-  await sock.sendMessage(OWNER_JID, { text: `🤖 *Ben Whittaker Tech Bot*\n\nPaircode for login:\n\n${pairCode}\n\nUse this paircode to connect the bot.` });
-
+// Show QR manually if needed
+sock.ev.on("connection.update", (update) => {
+  const { qr } = update;
+  if (qr) {
+    const qrcode = require("qrcode-terminal");
+    qrcode.generate(qr, { small: true });
+  }
+});
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async ({ connection, lastDisconnect }) => {
     if (connection === "close") {
       const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) {
-        console.log("⚠️ Connection closed, reconnecting...");
-        startBot();
-      } else {
-        console.log("❌ Connection closed. You are logged out.");
-      }
+      if (shouldReconnect) startBot();
     } else if (connection === "open") {
       console.log("✅ Bot connected!");
 
@@ -66,11 +64,12 @@ async function startBot() {
 📌 *Need assistance?* Just type *${PREFIX}support*.
       `;
 
-      await sock.sendMessage(OWNER_JID, { text: menu });
+      await sock.sendMessage(OWNER_JID, {
+        text: menu
+      });
     }
   });
 
-  // Your commands loading code here
   const commands = new Map();
   const commandsPath = path.join(__dirname, "commands");
   if (fs.existsSync(commandsPath)) {
@@ -83,9 +82,10 @@ async function startBot() {
     console.log("Created commands folder.");
   }
 
+  // Listen for incoming messages
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg.message) return;
 
     const from = msg.key.remoteJid;
     const isGroup = from.endsWith("@g.us");
@@ -131,7 +131,6 @@ async function startBot() {
           react: { text: "ℹ️", key: msg.key }
         });
       }
-      return;
     }
 
     if (isGroup && antiLinkGroups[from]?.enabled) {
@@ -150,6 +149,7 @@ async function startBot() {
             });
             return;
           }
+          
 
           if (action === "warn") {
             await sock.sendMessage(from, {
@@ -170,20 +170,18 @@ async function startBot() {
     }
 
     // Command execution
-    if (body.startsWith(PREFIX)) {
-      const cmdName = body.slice(PREFIX.length).trim().split(/\s+/)[0].toLowerCase();
-      const args = body.trim().split(/\s+/).slice(1);
-
-      if (commands.has(cmdName)) {
+    for (const [name, command] of commands) {
+      if (body.toLowerCase().startsWith(PREFIX + name)) {
         try {
-          await commands.get(cmdName).execute(sock, msg, args);
+          const args = body.trim().split(/\s+/).slice(1);
+          await command.execute(sock, msg, args);
         } catch (err) {
-          console.error(`Error executing command ${cmdName}:`, err);
-          await sock.sendMessage(from, { text: `❌ Error executing command *${cmdName}*.` });
+          console.error(`Error executing command ${name}:`, err);
         }
+        break;
       }
     }
-  });
-}
+  }); // end of sock.ev.on("messages.upsert")
+} // end of startBot()
 
 startBot();
