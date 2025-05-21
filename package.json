@@ -1,18 +1,18 @@
 {
   "name": "ben-whittaker-tech-bot",
   "version": "1.0.0",
-  "description": "WhatsApp bot using baileys",
+  "description": "WhatsApp bot using Baileys - Ben Whittaker Tech",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "author": "Ben Whittaker Tech",
+  "author": "Ben Whittaker",
   "license": "MIT",
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.16",
-    "pino": "^8.14.1",
-    "axios": "^1.4.0",
-    "cheerio": "^1.0.0-rc.12",
-    "@hapi/boom": "^10.0.0"
+    "pino": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=16"
   }
 }
