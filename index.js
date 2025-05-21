@@ -9,7 +9,7 @@ const {
   makeCacheableSignalKeyStore
 } = require("@whiskeysockets/baileys");
 
-const OWNER_JID = "255654478605@s.whatsapp.net";
+const OWNER_JID = "255760317060@s.whatsapp.net";
 const PREFIX = "!";
 
 const antiLinkGroups = {};
