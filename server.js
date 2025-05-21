@@ -1,5 +1,10 @@
 import express from 'express'
-import { makeWASocket, DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys'
+import { 
+  makeWASocket, 
+  DisconnectReason, 
+  fetchLatestBaileysVersion, 
+  useSingleFileAuthState 
+} from '@whiskeysockets/baileys'
 import pino from 'pino'
 import cors from 'cors'
 
@@ -29,7 +34,11 @@ app.post('/api/pair-code', (req, res) => {
   return res.json({ pairCode: code })
 })
 
+// Setup auth state - stores auth info in 'auth_info.json'
+const { state, saveState } = useSingleFileAuthState('./auth_info.json')
+
 let sock
+
 async function startSock() {
   const { version } = await fetchLatestBaileysVersion()
   const logger = pino({ level: 'silent' })
@@ -37,14 +46,22 @@ async function startSock() {
   sock = makeWASocket({
     version,
     logger,
-    printQRInTerminal: true
+    printQRInTerminal: true,
+    auth: state,             // Pass auth state here
   })
 
+  // Save auth credentials whenever updated
+  sock.ev.on('creds.update', saveState)
+
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update
+    const { connection, lastDisconnect, qr } = update
+    if (qr) {
+      console.log('Scan this QR code with WhatsApp:', qr)
+    }
     if (connection === 'close') {
       const status = lastDisconnect?.error?.output?.statusCode
       if (status !== DisconnectReason.loggedOut) {
+        console.log('Reconnecting...')
         startSock()
       } else {
         console.log('Logged out from WhatsApp.')
