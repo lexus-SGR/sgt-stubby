@@ -1,111 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sw">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WhatsApp Bot Pairing</title>
+  <title>Ben Whittaker Tech - Pair Bot</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #qr img { max-width: 300px; }
-    form { margin-top: 20px; }
-    input, button { padding: 8px; margin: 5px 0; width: 100%; max-width: 300px; }
-    .status { margin-top: 15px; font-weight: bold; }
+    body { font-family: sans-serif; background: #f7f7f7; text-align:center; padding: 30px; }
+    img { border-radius: 10px; max-width: 200px; }
+    #qr img { border: 2px solid #333; margin: 15px 0; }
+    #pair-code { font-size: 1.5em; margin: 20px 0; letter-spacing: 5px; }
   </style>
 </head>
 <body>
+  <h1>Ben Whittaker Tech - Link WhatsApp Bot</h1>
+  <img src="https://github.com/lexus-SGR/sgt-stubby/blob/dfdb617f379d4b8ac066f1a7becb67b0344e8002/public/ben-whittaker.jpg?raw=true" alt="Ben Whittaker" />
+  
+  <div id="pair-code">Pair code: <span style="font-weight:bold">Inapakia...</span></div>
+  <div id="qr">Subiri QR code...</div>
 
-  <h1>WhatsApp Bot Pairing</h1>
-
-  <div id="qr">
-    <h3>Scan QR code with WhatsApp to login</h3>
-    <div id="qrCodeContainer">Loading QR code...</div>
-  </div>
-
-  <hr />
-
-  <h3>Step 1: Generate Pair Code</h3>
-  <form id="generateForm">
-    <input type="text" id="generateNumber" placeholder="Enter your WhatsApp number (e.g. +2557...)" required />
-    <button type="submit">Generate Pair Code</button>
-  </form>
-  <div id="generateStatus" class="status"></div>
-
-  <hr />
-
-  <h3>Step 2: Verify Pair Code</h3>
-  <form id="verifyForm">
-    <input type="text" id="verifyNumber" placeholder="Enter your WhatsApp number (e.g. +2557...)" required />
-    <input type="text" id="pairCode" placeholder="Enter pair code (8 digits)" required maxlength="8" />
-    <button type="submit">Verify Code</button>
-  </form>
-  <div id="verifyStatus" class="status"></div>
+  <p>Tuma *pair code* hapo juu kwenye WhatsApp ya bot (tumia *!pair* kuanza).</p>
+  <p>Kisha scan QR hapa chini kuunganisha device yako.</p>
 
   <script>
-    // Poll server for QR code every 5 seconds
+    async function fetchPairCode() {
+      const res = await fetch('/api/pair-code')
+      const data = await res.json()
+      document.getElementById('pair-code').querySelector('span').textContent = data.pairCode
+      return data.pairCode
+    }
+
     async function fetchQR() {
-      try {
-        const res = await fetch('/api/qr')
-        const data = await res.json()
-        const container = document.getElementById('qrCodeContainer')
-        if (data.qr) {
-          container.innerHTML = `<img src="${data.qr}" alt="QR Code" />`
-        } else {
-          container.innerHTML = 'QR code not available or already scanned.'
-        }
-      } catch (err) {
-        console.error(err)
-        document.getElementById('qrCodeContainer').innerText = 'Failed to load QR code.'
+      const res = await fetch('/api/qr')
+      const data = await res.json()
+      if (data.qr) {
+        document.getElementById('qr').innerHTML = `<img src="${data.qr}" width="250" />`
+      } else {
+        document.getElementById('qr').textContent = 'QR bado haijapatikana...'
       }
     }
-    fetchQR()
-    setInterval(fetchQR, 5000)
 
-    // Generate pair code
-    document.getElementById('generateForm').addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const number = document.getElementById('generateNumber').value.trim()
-      const status = document.getElementById('generateStatus')
-      status.textContent = 'Generating pair code...'
-      try {
-        const res = await fetch('/api/generate-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number })
-        })
-        const data = await res.json()
-        if (data.success) {
-          status.textContent = `Pair code sent via WhatsApp: ${data.pairCode}`
-        } else {
-          status.textContent = 'Error: ' + (data.error || 'Unknown error')
-        }
-      } catch (err) {
-        status.textContent = 'Failed to generate pair code.'
-      }
-    })
+    async function main() {
+      await fetchPairCode()
+      await fetchQR()
+      setInterval(fetchQR, 3000)
+    }
 
-    // Verify pair code
-    document.getElementById('verifyForm').addEventListener('submit', async (e) => {
-      e.preventDefault()
-      const number = document.getElementById('verifyNumber').value.trim()
-      const pairCode = document.getElementById('pairCode').value.trim()
-      const status = document.getElementById('verifyStatus')
-      status.textContent = 'Verifying pair code...'
-      try {
-        const res = await fetch('/api/verify-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ number, pairCode })
-        })
-        const data = await res.json()
-        if (data.success) {
-          status.textContent = data.message || 'Pair code verified successfully!'
-        } else {
-          status.textContent = 'Error: ' + (data.error || 'Unknown error')
-        }
-      } catch (err) {
-        status.textContent = 'Failed to verify pair code.'
-      }
-    })
+    main()
   </script>
+
 </body>
 </html>
