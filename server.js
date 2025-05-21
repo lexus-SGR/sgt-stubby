@@ -1,14 +1,10 @@
 import express from 'express'
-import makeWASocket, {
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  DisconnectReason
-} from '@whiskeysockets/baileys'
+import { default as makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys'
 import Pino from 'pino'
 import qrcode from 'qrcode'
 
 const app = express()
-const port = process.env.PORT || 3000
+const port = process.env.PORT || 10000
 
 app.use(express.json())
 app.use(express.static('public'))
@@ -16,8 +12,7 @@ app.use(express.static('public'))
 let qrCodeData = ''
 let isConnected = false
 let sock = null
-
-const pairCodes = new Map() // phone => { code, timestamp }
+const pairCodes = new Map()
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState('session')
@@ -25,14 +20,15 @@ async function startSock() {
 
   sock = makeWASocket({
     version,
+    printQRInTerminal: false,
     auth: state,
-    logger: Pino({ level: 'silent' })
+    logger: Pino({ level: 'silent' }),
   })
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       qrCodeData = await qrcode.toDataURL(qr)
-      console.log('QR code updated! Visit /api/qr to scan.')
+      console.log('QR code updated, visit / to scan it')
       isConnected = false
     }
 
@@ -56,8 +52,8 @@ async function startSock() {
     const msg = messages[0]
     if (!msg.message || msg.key.fromMe) return
 
-    const body = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
-    if (body.toLowerCase() === '!ping') {
+    const messageContent = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
+    if (messageContent.toLowerCase() === '!ping') {
       await sock.sendMessage(msg.key.remoteJid, { text: 'pong' }, { quoted: msg })
     }
   })
@@ -65,61 +61,64 @@ async function startSock() {
 
 startSock()
 
-// QR CODE API
 app.get('/api/qr', (req, res) => {
-  if (qrCodeData) {
-    res.json({ qr: qrCodeData })
-  } else {
-    res.json({ qr: null })
-  }
+  res.json({ qr: qrCodeData || null })
 })
 
-// GENERATE 8-DIGIT CODE
 app.post('/api/generate-code', (req, res) => {
   const { number } = req.body
   if (!number || !number.match(/^\+?\d+$/)) {
-    return res.status(400).json({ success: false, error: 'Number is invalid.' })
+    return res.status(400).json({ success: false, error: 'Invalid number. Please enter with country code.' })
   }
 
   const code = Math.floor(10000000 + Math.random() * 90000000).toString()
   pairCodes.set(number, { code, timestamp: Date.now() })
 
   if (isConnected) {
-    sock.sendMessage(`${number}@s.whatsapp.net`, { text: `Your pair code is: ${code}` }).catch(console.error)
+    sock.sendMessage(number + '@s.whatsapp.net', { text: `Your pair code is: ${code}` }).catch(console.error)
   }
 
   res.json({ success: true, pairCode: code })
 })
 
-// VERIFY CODE
 app.post('/api/verify-code', async (req, res) => {
   const { number, pairCode } = req.body
+  if (!number || !pairCode) {
+    return res.status(400).json({ success: false, error: 'Number and pairCode are required.' })
+  }
+
   const record = pairCodes.get(number)
-  if (!record) return res.status(400).json({ success: false, error: 'Code not found.' })
-  if (record.code !== pairCode) return res.status(400).json({ success: false, error: 'Invalid code.' })
+  if (!record) {
+    return res.status(400).json({ success: false, error: 'No pair code found for this number.' })
+  }
+
+  if (record.code !== pairCode) {
+    return res.status(400).json({ success: false, error: 'Invalid pair code.' })
+  }
 
   if (Date.now() - record.timestamp > 10 * 60 * 1000) {
     pairCodes.delete(number)
-    return res.status(400).json({ success: false, error: 'Code expired.' })
+    return res.status(400).json({ success: false, error: 'Pair code expired.' })
   }
 
-  if (!isConnected) return res.status(400).json({ success: false, error: 'Bot not connected.' })
+  if (!isConnected) {
+    return res.status(400).json({ success: false, error: 'Bot is not connected.' })
+  }
 
   try {
-    await sock.sendMessage(`${number}@s.whatsapp.net`, { text: `Session active for ${number}.` })
-    res.json({ success: true, message: 'Session confirmed.' })
+    await sock.sendMessage(number + '@s.whatsapp.net', {
+      text: `Bot is connected and session is active for ${number}.`
+    })
+
+    res.json({ success: true, message: 'Session confirmed and message sent to WhatsApp.' })
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to send message.' })
+    console.error('Error sending session message:', error)
+    res.status(500).json({ success: false, error: 'Failed to send session message via WhatsApp.' })
   }
 })
 
-// BOT STATUS
 app.get('/status', (req, res) => {
-  if (isConnected) {
-    res.send('<h3>Bot is connected.</h3>')
-  } else {
-    res.send('<h3>Bot is NOT connected.</h3>')
-  }
+  res.send(`<h2>Status: Bot is ${isConnected ? 'connected' : 'not connected'}.</h2>`)
 })
 
 app.listen(port, () => {
