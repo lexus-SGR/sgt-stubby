@@ -2,12 +2,6 @@ import express from 'express'
 import { default as makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } from '@whiskeysockets/baileys'
 import Pino from 'pino'
 import qrcode from 'qrcode'
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -15,14 +9,17 @@ const port = process.env.PORT || 3000
 app.use(express.json())
 app.use(express.static('public'))
 
-let pairCodes = {}
-let qrCodeData = ''
-let isConnected = false
-let sock = null
+// Hifadhi pair codes na status zao
+const pairCodes = new Map() // key: code, value: { connected: bool, jid: string, sessionId: string|null }
 
-function generateCode() {
+// Generate random 8 digit code
+function generatePairCode() {
   return Math.floor(10000000 + Math.random() * 90000000).toString()
 }
+
+let qrCodeData = ''
+let sock = null
+let isConnected = false
 
 async function startSock() {
   const { state, saveCreds } = await useMultiFileAuthState('session')
@@ -38,15 +35,18 @@ async function startSock() {
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       qrCodeData = await qrcode.toDataURL(qr)
+      console.log('QR ready - visit browser to scan')
       isConnected = false
     }
 
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut
+      console.log('Connection closed:', lastDisconnect?.error, ', reconnecting:', shouldReconnect)
       isConnected = false
       qrCodeData = ''
       if (shouldReconnect) startSock()
     } else if (connection === 'open') {
+      console.log('Bot connected successfully.')
       isConnected = true
       qrCodeData = ''
     }
@@ -54,66 +54,67 @@ async function startSock() {
 
   sock.ev.on('creds.update', saveCreds)
 
+  // Listen for incoming messages
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
     const msg = messages[0]
     if (!msg.message || msg.key.fromMe) return
 
-    const number = msg.key.remoteJid.replace('@s.whatsapp.net', '')
-    const message = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
+    const messageText = msg.message.conversation || msg.message.extendedTextMessage?.text || ''
 
-    if (/^\d{8}$/.test(message.trim())) {
-      const code = message.trim()
-      if (pairCodes[code] && pairCodes[code].number === number) {
-        const zip = 'session.zip'
-        const archiver = await import('archiver')
-        const archive = archiver.default('zip', { zlib: { level: 9 } })
-        const output = fs.createWriteStream(zip)
+    // Kama message ni pair code halali
+    if (pairCodes.has(messageText)) {
+      // Mark user connected with this pair code
+      const pairInfo = pairCodes.get(messageText)
+      pairInfo.connected = true
+      pairInfo.jid = msg.key.remoteJid
+      // Generate session ID (example, random string)
+      pairInfo.sessionId = Math.random().toString(36).slice(2, 10).toUpperCase()
 
-        archive.pipe(output)
-        archive.directory('session/', false)
-        archive.finalize()
+      // Send confirmation with session ID
+      await sock.sendMessage(msg.key.remoteJid, {
+        text: `Umeunganishwa na bot kwa pair code: ${messageText}\nSession ID yako ni: ${pairInfo.sessionId}\nHifadhi session hii kwa ajili ya deploy.`
+      }, { quoted: msg })
 
-        output.on('close', async () => {
-          await sock.sendMessage(msg.key.remoteJid, {
-            document: fs.readFileSync(zip),
-            fileName: 'session.zip',
-            mimetype: 'application/zip',
-            caption: 'Umefanikiwa kuunganishwa! Hii hapa session yako kwa ajili ya ku-deploy bot.',
-          })
-          fs.unlinkSync(zip)
-          delete pairCodes[code]
-        })
-      }
+      console.log(`User ${msg.key.remoteJid} connected with code ${messageText}, session ID: ${pairInfo.sessionId}`)
+      return
+    }
+
+    // Kama ni command !pair basi tuma pair code mpya
+    if (messageText.toLowerCase() === '!pair') {
+      const newCode = generatePairCode()
+      pairCodes.set(newCode, { connected: false, jid: null, sessionId: null })
+      await sock.sendMessage(msg.key.remoteJid, { text: `Pair code yako ni: ${newCode}\nTuma code hii kwenye app ili ku-link.` }, { quoted: msg })
+      console.log(`Generated new pair code ${newCode} for ${msg.key.remoteJid}`)
+      return
+    }
+
+    // Mfano wa ping
+    if (messageText.toLowerCase() === '!ping') {
+      await sock.sendMessage(msg.key.remoteJid, { text: 'pong' }, { quoted: msg })
+      return
     }
   })
 }
 
 startSock()
 
-app.post('/api/request-session', async (req, res) => {
-  const { number } = req.body
-  if (!number || !number.match(/^\+?\d+$/)) {
-    return res.status(400).json({ error: 'Weka namba ya WhatsApp sahihi.' })
-  }
-
-  const code = generateCode()
-  pairCodes[code] = { number: number.replace('+', ''), createdAt: Date.now() }
-
-  try {
-    await sock.sendMessage(number.replace('+', '') + '@s.whatsapp.net', {
-      text: `Hello! Ingiza pair code hii: *${code}* kwenye ukurasa wa QR. Kisha scan QR yako.`
-    })
-    return res.json({ success: true, code })
-  } catch (e) {
-    return res.status(500).json({ success: false, error: 'Imeshindikana kutuma ujumbe kwa WhatsApp.' })
+// API kuonyesha QR code (for browser)
+app.get('/api/qr', (req, res) => {
+  if (qrCodeData) {
+    res.json({ qr: qrCodeData })
+  } else {
+    res.json({ qr: null })
   }
 })
 
-app.get('/api/qr', (req, res) => {
-  res.json({ qr: qrCodeData || null })
+// API kuonyesha pair code mpya kwa browser
+app.get('/api/pair-code', (req, res) => {
+  const code = generatePairCode()
+  pairCodes.set(code, { connected: false, jid: null, sessionId: null })
+  res.json({ pairCode: code })
 })
 
 app.listen(port, () => {
-  console.log(`Server started on http://localhost:${port}`)
+  console.log(`Server running on port ${port}`)
 })
