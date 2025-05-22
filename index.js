@@ -33,6 +33,47 @@ const PREFIX = "!";
 const emojiReactions = ["❤️", "😂", "🔥", "👍", "😎", "🤖"];
 const randomEmoji = () => emojiReactions[Math.floor(Math.random() * emojiReactions.length)];
 
+// Function ya auto view status
+async function onViewStatus(sock, jid, from) {
+  try {
+    await sock.sendMessage(jid, { react: { text: "🚀", key: { remoteJid: jid } } });
+
+    const ownerJid = "255760317060@s.whatsapp.net"; // Badilisha namba yako hapa kama unataka
+    const userNumber = from.replace("@s.whatsapp.net", "");
+    const dmMessage = `🇹🇿 *Seen by Ben owner of this bot (SPD-XMD)* 🇹🇿\nUser: +${userNumber}`;
+
+    await sock.sendMessage(ownerJid, { text: dmMessage });
+  } catch (err) {
+    console.error("Error in onViewStatus:", err);
+  }
+}
+
+// Function ya kubadilisha bio automatically
+function autoBio(sock) {
+  const bios = [
+    "🚀 SPD-XMD Bot - Your AI Companion",
+    "🤖 Powered by AI & Tech Tools",
+    "📈 Uptime Stable & Running Smoothly",
+    "🎯 Helping You Every Step of The Way",
+    "🔧 Custom Tools & Downloads",
+    "🌍 Made for Tanzania & Beyond"
+  ];
+
+  let index = 0;
+
+  setInterval(async () => {
+    try {
+      const newBio = bios[index];
+      await sock.updateProfileStatus(newBio);
+      console.log(`Auto bio updated to: ${newBio}`);
+
+      index = (index + 1) % bios.length;
+    } catch (err) {
+      console.error("Error updating bio:", err);
+    }
+  }, 6 * 60 * 60 * 1000); // kila baada ya masaa 6
+}
+
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
   const { version } = await fetchLatestBaileysVersion();
@@ -127,6 +168,16 @@ if (isGroup) {
   }
 }
 
+  // Hapa unaweza check amri za bot zako:
+  if (body.toLowerCase() === `${PREFIX}viewstatus`) {
+    await onViewStatus(sock, from, sender);
+  }
+
+  if (!isGroup && body.toLowerCase() === `${PREFIX}startbio`) {
+    autoBio(sock);
+  }
+
+    
     // FAKE RECORDING PRESENCE
     await sock.sendPresenceUpdate("recording", from);
     setTimeout(() => {
