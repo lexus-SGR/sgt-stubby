@@ -1,15 +1,9 @@
-const fs = require("fs");
-const path = require("path");
-
 module.exports = {
   name: "menu",
   description: "Display the full command list of SPD-XMD Bot",
   emoji: "📑",
   async execute(sock, msg) {
     try {
-      // Badilisha hapa picha inayo soma kutoka 'lexus AI HUB.png' kama kwenye donate
-      const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
-
       const botName = "SPD-XMD";
       const ownerNumber = "255760317060";
       const pushName = msg.pushName || "User";
@@ -112,23 +106,9 @@ ${prefix}currency    💱 Exchange Rates
 📦 GitHub: [https://github.com/lexus-SGR/sgt-stubby.git](https://github.com/lexus-SGR/sgt-stubby.git)
 `;
 
-      // Tuma picha na menu kama caption
+      // Tuma menu kama text tu
       await sock.sendMessage(msg.key.remoteJid, {
-        image: menuImage,
-        caption: techMenu,
-        mimetype: "image/png",
-        jpegThumbnail: menuImage,
-        contextInfo: {
-          externalAdReply: {
-            title: `${botName} WhatsApp Bot`,
-            body: "AI | Downloaders | Tools | Security",
-            mediaType: 1,
-            previewType: "PHOTO",
-            thumbnail: menuImage,
-            renderLargerThumbnail: true,
-            sourceUrl: "https://github.com/lexus-SGR/sgt-stubby.git",
-          },
-        },
+        text: techMenu,
       });
 
       // Optional: reaction emoji
