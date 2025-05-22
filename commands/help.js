@@ -1,26 +1,11 @@
-const fs = require("fs");
-const path = require("path");
-
 module.exports = {
   name: "help",
   alias: ["menu", "commands"],
-  desc: "Show help menu with image and music",
+  desc: "Show help menu (text only)",
   emoji: "📜",
   async execute(sock, msg) {
     try {
       const prefix = "!"; // fallback prefix
-      const folderPath = path.join(__dirname, "image+music");
-      const imagePath = path.join(folderPath, "tech-help.png");
-      const musicPath = path.join(folderPath, "spd.mp3");
-
-      if (!fs.existsSync(imagePath) || !fs.existsSync(musicPath)) {
-        return await sock.sendMessage(msg.key.remoteJid, {
-          text: "Missing help image or music file.",
-        }, { quoted: msg });
-      }
-
-      const stickerImage = fs.readFileSync(imagePath);
-      const musicAudio = fs.readFileSync(musicPath);
 
       const caption = `
 ╔══════════════════════════════╗
@@ -34,8 +19,8 @@ module.exports = {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📌 𝗛𝗢𝗪 𝗧𝗢 𝗨𝗦𝗘:
 ──────────────────────────────
-1️⃣ Send an image or short video
-2️⃣ Reply with ${prefix}sticker
+1️⃣ Send an image or short video  
+2️⃣ Reply with ${prefix}sticker  
 3️⃣ Wait for your sticker!
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -53,24 +38,11 @@ module.exports = {
 `;
 
       await sock.sendMessage(msg.key.remoteJid, {
-        image: stickerImage,
-        caption,
-        footer: "SPD-XMD Bot",
-        buttons: [
-          { buttonId: `${prefix}menu`, buttonText: { displayText: "📜 More Commands" }, type: 1 },
-          { buttonId: `owner`, buttonText: { displayText: "👤 Contact Owner" }, type: 1 }
-        ],
-        headerType: 4
-      }, { quoted: msg });
-
-      await sock.sendMessage(msg.key.remoteJid, {
-        audio: musicAudio,
-        mimetype: "audio/mpeg",
-        ptt: false
+        text: caption
       }, { quoted: msg });
 
     } catch (error) {
-      console.error("Error sending help menu with music:", error);
+      console.error("Error sending help menu:", error);
       await sock.sendMessage(msg.key.remoteJid, {
         text: "Sorry, there was an error loading the help menu.",
       }, { quoted: msg });
