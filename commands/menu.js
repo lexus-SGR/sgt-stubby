@@ -7,14 +7,14 @@ module.exports = {
   emoji: "📑",
   async execute(sock, msg) {
     try {
-      // Soma picha yako kutoka folder ile ile na index.js iko
-      const menuImage = fs.readFileSync(path.join(__dirname, "5efa69c34e338014b60a31cb6e308a27.png"));
-      
+      // Badilisha hapa picha inayo soma kutoka 'lexus AI HUB.png' kama kwenye donate
+      const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
+
       const botName = "SPD-XMD";
       const ownerNumber = "255760317060";
       const pushName = msg.pushName || "User";
       const prefix = "!";
-      
+
       let techMenu = `
 ╭━━〔 *${botName} BOT MENU* 〕━━╮
 │ *User:* ${pushName}
@@ -112,7 +112,7 @@ ${prefix}currency    💱 Exchange Rates
 📦 GitHub: [https://github.com/lexus-SGR/sgt-stubby.git](https://github.com/lexus-SGR/sgt-stubby.git)
 `;
 
-      // Tuma picha na menu kama caption (preview inaonekana moja kwa moja)
+      // Tuma picha na menu kama caption
       await sock.sendMessage(msg.key.remoteJid, {
         image: menuImage,
         caption: techMenu,
@@ -135,6 +135,7 @@ ${prefix}currency    💱 Exchange Rates
       await sock.sendMessage(msg.key.remoteJid, {
         react: { text: "📑", key: msg.key },
       });
+
     } catch (error) {
       console.error("Error sending menu:", error);
       await sock.sendMessage(msg.key.remoteJid, {
