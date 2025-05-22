@@ -3,11 +3,12 @@ const path = require("path");
 
 module.exports = {
   name: "alive",
-  alias: ["botstatus", "up"],
-  desc: "Check if the bot is running",
-  category: "main",
-  async execute(m, { sock }) {
+  description: "Check if the bot is running.",
+  emoji: "✅",
+  async execute(sock, msg) {
     try {
+      await sock.sendMessage(msg.key.remoteJid, { react: { text: "✅", key: msg.key } });
+
       const aliveImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
       const uptime = process.uptime();
       const hrs = Math.floor(uptime / 3600);
@@ -25,15 +26,17 @@ module.exports = {
 *Thank you for using SPD-XMD Bot!*
       `;
 
-      await sock.sendMessage(m.chat, {
+      await sock.sendMessage(msg.key.remoteJid, {
         image: aliveImage,
         caption: aliveMsg,
         footer: "SPD-XMD Bot"
-      }, { quoted: m });
+      });
 
     } catch (error) {
       console.error("Error sending alive status:", error);
-      await sock.sendMessage(m.chat, { text: "Sorry, unable to fetch bot status right now." }, { quoted: m });
+      await sock.sendMessage(msg.key.remoteJid, {
+        text: "❌ Sorry, unable to fetch bot status right now."
+      });
     }
   }
 };
