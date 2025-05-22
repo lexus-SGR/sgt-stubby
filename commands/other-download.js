@@ -74,4 +74,13 @@ module.exports = {
     emoji: "📱",
     async execute(sock, msg, args) {
       if (!args[0]) return sock.sendMessage(msg.key.remoteJid, { text: "Send APK download link." });
-      const url = args[0
+      const url = args[0];
+
+      try {
+        await sock.sendMessage(msg.key.remoteJid, { text: `APK Download: ${url}` });
+      } catch {
+        await sock.sendMessage(msg.key.remoteJid, { text: "Error sending APK link." });
+      }
+    }
+  }
+};
