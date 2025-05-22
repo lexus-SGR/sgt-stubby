@@ -3,15 +3,15 @@ const path = require("path");
 
 module.exports = {
   name: "donate",
-  alias: ["support", "donation"],
-  desc: "Support the bot developer",
-  category: "main",
-  async execute(m, { sock, command, pushName }) {
+  description: "Support the bot developer.",
+  emoji: "❤️",
+  async execute(sock, msg) {
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "❤️", key: msg.key } });
+
     const donateImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
 
     const donationMsg = `
 ╭─❖ *DONATE TO SPD-XMD* ❖─╮
-│ 👤 Name: ${pushName}
 │ 🤖 Bot: SPD-XMD
 │ 🆔 Developer: wa.me/255760317060
 │ 💼 GitHub: github.com/lexus-SGR/sgt-stubby.git
@@ -27,18 +27,18 @@ module.exports = {
 *Thank you for using SPD-XMD Bot!*
     `;
 
-    await sock.sendMessage(m.chat, {
+    await sock.sendMessage(msg.key.remoteJid, {
       image: donateImage,
       caption: donationMsg,
       footer: "Click the button below to contact developer",
       buttons: [
         {
-          buttonId: `owner`,
+          buttonId: "owner",
           buttonText: { displayText: "Contact Developer" },
           type: 1,
         },
       ],
       headerType: 4,
     });
-  },
+  }
 };
