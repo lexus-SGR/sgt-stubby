@@ -4,18 +4,19 @@ const path = require("path");
 module.exports = {
   name: "help",
   alias: ["menu", "commands"],
-  desc: "Show help menu with commands and background music",
-  category: "general",
-  async execute(m, { sock, command, prefix }) {
+  desc: "Show help menu with image and music",
+  emoji: "📜",
+  async execute(sock, msg) {
     try {
+      const prefix = "!"; // fallback prefix
       const folderPath = path.join(__dirname, "image+music");
       const imagePath = path.join(folderPath, "tech-help.png");
       const musicPath = path.join(folderPath, "spd.mp3");
 
       if (!fs.existsSync(imagePath) || !fs.existsSync(musicPath)) {
-        return sock.sendMessage(m.chat, {
+        return await sock.sendMessage(msg.key.remoteJid, {
           text: "Missing help image or music file.",
-        }, { quoted: m });
+        }, { quoted: msg });
       }
 
       const stickerImage = fs.readFileSync(imagePath);
@@ -40,41 +41,39 @@ module.exports = {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🛠️ 𝗙𝗘𝗔𝗧𝗨𝗥𝗘𝗦:
 ──────────────────────────────
-✅ Supports images, videos & gifs
-✅ Custom sticker pack name
+✅ Supports images, videos & gifs  
+✅ Custom sticker pack name  
 ✅ Works with replies & direct media
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🆘 For help, type ${prefix}help sticker
+🆘 For help, type ${prefix}help sticker  
 ╔══════════════════════════════╗
-║     Powered by SPD-XMD Bot    ║
+║     Powered by SPD-XMD Bot     ║
 ╚══════════════════════════════╝
 `;
 
-      // Send image with caption and buttons
-      await sock.sendMessage(m.chat, {
+      await sock.sendMessage(msg.key.remoteJid, {
         image: stickerImage,
         caption,
         footer: "SPD-XMD Bot",
         buttons: [
           { buttonId: `${prefix}menu`, buttonText: { displayText: "📜 More Commands" }, type: 1 },
-          { buttonId: "https://wa.me/255760317060", buttonText: { displayText: "👤 Contact Owner" }, type: 1 }
+          { buttonId: `owner`, buttonText: { displayText: "👤 Contact Owner" }, type: 1 }
         ],
         headerType: 4
-      }, { quoted: m });
+      }, { quoted: msg });
 
-      // Send background audio separately
-      await sock.sendMessage(m.chat, {
+      await sock.sendMessage(msg.key.remoteJid, {
         audio: musicAudio,
         mimetype: "audio/mpeg",
-        ptt: false,
-      }, { quoted: m });
+        ptt: false
+      }, { quoted: msg });
 
     } catch (error) {
       console.error("Error sending help menu with music:", error);
-      await sock.sendMessage(m.chat, {
+      await sock.sendMessage(msg.key.remoteJid, {
         text: "Sorry, there was an error loading the help menu.",
-      }, { quoted: m });
+      }, { quoted: msg });
     }
   }
 };
