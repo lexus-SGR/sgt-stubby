@@ -1,16 +1,29 @@
 module.exports = {
   name: "demote",
-  description: "Demote an admin to member.",
+  description: "Remove admin privileges from a user.",
   emoji: "⬇️",
-  async execute(sock, msg, args, isAdmin, isBotAdmin) {
-    if (!msg.key.remoteJid.endsWith("@g.us")) return;
-    if (!isAdmin) return sock.sendMessage(msg.key.remoteJid, { text: "Only admins can demote others." });
-    if (!isBotAdmin) return sock.sendMessage(msg.key.remoteJid, { text: "Bot must be admin to demote users." });
 
-    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid;
-    if (!mentioned || mentioned.length === 0) return sock.sendMessage(msg.key.remoteJid, { text: "Tag a user to demote." });
+  async execute(sock, msg, args, isAdmin, isBotAdmin, groupMetadata) {
+    const from = msg.key.remoteJid;
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const ownerJid = "255760317060@s.whatsapp.net";
 
-    await sock.groupParticipantsUpdate(msg.key.remoteJid, mentioned, "demote");
-    await sock.sendMessage(msg.key.remoteJid, { text: `Demoted ${mentioned[0]}`, react: { text: "⬇️", key: msg.key } });
+    if (!from.endsWith("@g.us")) return;
+    if (!isAdmin && sender !== ownerJid)
+      return sock.sendMessage(from, { text: "⛔ Only admins can demote members." });
+    if (!isBotAdmin)
+      return sock.sendMessage(from, { text: "⚠️ I need admin rights to demote." });
+
+    const target = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] ||
+                   msg.message?.extendedTextMessage?.contextInfo?.participant;
+
+    if (!target) return sock.sendMessage(from, { text: "⚠️ Tag or reply to user to demote." });
+
+    try {
+      await sock.groupParticipantsUpdate(from, [target], "demote");
+      await sock.sendMessage(from, { text: `✅ Demoted @${target.split("@")[0]}`, mentions: [target] });
+    } catch {
+      await sock.sendMessage(from, { text: "❌ Failed to demote user." });
+    }
   }
 };
