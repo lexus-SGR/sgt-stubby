@@ -9,10 +9,16 @@ module.exports = {
         return await sock.sendMessage(from, { text: "⛔ This command only works in groups!" });
       }
 
-      const ownerJid = "255760317060@s.whatsapp.net"; // badilisha na namba yako
+      const ownerJid = "255760317060@s.whatsapp.net"; // badilisha kwa namba yako halisi ya owner
 
+      // Ruhusu owner tu au admin
       if (!isGroupAdmin && sender !== ownerJid) {
-        return await sock.sendMessage(from, { text: "⚠️ Only group admins can use this command!" });
+        return await sock.sendMessage(from, { text: "⚠️ Only *admins* or the *owner* can use this command!" });
+      }
+
+      // Bot lazima awe admin
+      if (!isBotAdmin) {
+        return await sock.sendMessage(from, { text: "🤖 Bot needs to be *admin* to tag everyone!" });
       }
 
       const message = args.join(" ") || "👀";
@@ -20,8 +26,8 @@ module.exports = {
 
       await sock.sendMessage(from, {
         text: message,
-        mentions
-      });
+        mentions,
+      }, { quoted: msg });
 
       await sock.sendMessage(from, {
         react: {
