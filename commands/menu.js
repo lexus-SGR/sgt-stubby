@@ -21,86 +21,86 @@ module.exports = {
 ╰━━━━━━━━━━━━━━━━━━━━━━╯
 
 ───❖ *[ GENERAL COMMANDS ]* ❖───
-${📌}ping     🥊 Check bot status  
-${📌}menu     📑 View all features  
-${📌}owner    👑 Bot Owner  
-${📌}runtime  ⏳ Bot Uptime  
-${📌}speed    🚀 Bot Speed  
-${📌}donate   ❤️ Support Bot  
-${📌}alive    ☑️ Bot Online Check  
-${📌}info     ℹ️ Bot Info  
-${📌}report   📝 Report Bug  
+${prefix}ping     🥊 Check bot status  
+${prefix}menu     📑 View all features  
+${prefix}owner    👑 Bot Owner  
+${prefix}runtime  ⏳ Bot Uptime  
+${prefix}speed    🚀 Bot Speed  
+${prefix}donate   ❤️ Support Bot  
+${prefix}alive    ☑️ Bot Online Check  
+${prefix}info     ℹ️ Bot Info  
+${prefix}report   📝 Report Bug  
 
 ───❖ *[ AI & TECH TOOLS ]* ❖───
-${📌}ai           🤖 ChatGPT Response  
-${📌}img          🧠 AI Image Generator  
-${📌}code         💻 AI Code Helper  
-${📌}pdf          📄 PDF Converter  
-${📌}qrcode       🔳 QR Generator  
-${📌}scanqr       🔍 QR Code Reader  
-${📌}translate    🌐 Translate Text  
-${📌}meme         😂 Random Memes  
-${📌}tts          🔊 Text-to-Speech  
-${📌}voicemaster  🗣 Voice Edit AI  
+${prefix}ai           🤖 ChatGPT Response  
+${prefix}img          🧠 AI Image Generator  
+${prefix}code         💻 AI Code Helper  
+${prefix}pdf          📄 PDF Converter  
+${prefix}qrcode       🔳 QR Generator  
+${prefix}scanqr       🔍 QR Code Reader  
+${prefix}translate    🌐 Translate Text  
+${prefix}meme         😂 Random Memes  
+${prefix}tts          🔊 Text-to-Speech  
+${prefix}voicemaster  🗣 Voice Edit AI  
 
 ───❖ *[ DOWNLOADERS ]* ❖───
-${📌}ytmp3     🎵 YouTube MP3  
-${📌}ytmp4     🎬 YouTube Video  
-${📌}tiktok    🎶 TikTok No Watermark  
-${📌}fb        📘 Facebook Video  
-${📌}ig        📸 Instagram Reels  
-${📌}twitter   🐦 Twitter Video  
-${📌}pinterest 📍 Pinterest Image  
-${📌}mediafire 📥 Mediafire Link  
-${📌}apk       📱 APK Downloader  
-${📌}soundcloud 🎧 MP3 from SoundCloud  
+${prefix}ytmp3     🎵 YouTube MP3  
+${prefix}ytmp4     🎬 YouTube Video  
+${prefix}tiktok    🎶 TikTok No Watermark  
+${prefix}fb        📘 Facebook Video  
+${prefix}ig        📸 Instagram Reels  
+${prefix}twitter   🐦 Twitter Video  
+${prefix}pinterest 📍 Pinterest Image  
+${prefix}mediafire 📥 Mediafire Link  
+${prefix}apk       📱 APK Downloader  
+${prefix}soundcloud 🎧 MP3 from SoundCloud  
 
 ───❖ *[ GROUP/ADMIN TOOLS ]* ❖───
-${📌}antilink     🔗 Anti Group Link  
-${📌}kick         👢 Remove Member  
-${📌}add          ➕ Add Member  
-${📌}promote      📈 Make Admin  
-${📌}demote       📉 Remove Admin  
-${📌}tagall       🗣 Tag Everyone  
-${📌}hidetag      🫣 Hide Mention  
-${📌}welcome on/off ✋ Welcome Msg  
-${📌}group open/close 🔐 Group Lock  
+${prefix}antilink     🔗 Anti Group Link  
+${prefix}kick         👢 Remove Member  
+${prefix}add          ➕ Add Member  
+${prefix}promote      📈 Make Admin  
+${prefix}demote       📉 Remove Admin  
+${prefix}tagall       🗣 Tag Everyone  
+${prefix}hidetag      🫣 Hide Mention  
+${prefix}welcome on/off ✋ Welcome Msg  
+${prefix}group open/close 🔐 Group Lock  
 
 ───❖ *[ GAMES & FUN ]* ❖───
-${📌}truth       ❓ Truth Game  
-${📌}dare        ⚠️ Dare Game  
-${📌}guess       🎯 Guess the Word  
-${📌}tictactoe   ❎ TicTacToe Game  
-${📌}maths       ➗ Math Challenge  
-${📌}riddle      🧠 Brain Teaser  
-${📌}slot        🎰 Slot Machine  
-${📌}quotes      💬 Life Quotes  
-${📌}quiz        🧩 Daily Quiz  
-${📌}fact        📚 Random Fact  
+${prefix}truth       ❓ Truth Game  
+${prefix}dare        ⚠️ Dare Game  
+${prefix}guess       🎯 Guess the Word  
+${prefix}tictactoe   ❎ TicTacToe Game  
+${prefix}maths       ➗ Math Challenge  
+${prefix}riddle      🧠 Brain Teaser  
+${prefix}slot        🎰 Slot Machine  
+${prefix}quotes      💬 Life Quotes  
+${prefix}quiz        🧩 Daily Quiz  
+${prefix}fact        📚 Random Fact  
 
 ───❖ *[ SECURITY & UTILITY ]* ❖───
-${📌}block       🚫 Block User  
-${📌}unblock     ✅ Unblock User  
-${📌}ban         🔨 Ban User  
-${📌}unban       🆓 Unban User  
-${📌}antilink    🔗 Block Links  
-${📌}setprefix   🔧 Custom Prefix  
-${📌}setbio      📝 Set Group Bio  
-${📌}warn        ⚠️ Warn Member  
-${📌}lockcmd     🔒 Lock Command  
-${📌}checkcmd    🔍 Check Command  
+${prefix}block       🚫 Block User  
+${prefix}unblock     ✅ Unblock User  
+${prefix}ban         🔨 Ban User  
+${prefix}unban       🆓 Unban User  
+${prefix}antilink    🔗 Block Links  
+${prefix}setprefix   🔧 Custom Prefix  
+${prefix}setbio      📝 Set Group Bio  
+${prefix}warn        ⚠️ Warn Member  
+${prefix}lockcmd     🔒 Lock Command  
+${prefix}checkcmd    🔍 Check Command  
 
 ───❖ *[ TOOLS & INTERNET ]* ❖───
-${📌}shorturl    🔗 Shorten URL  
-${📌}weather     ☁️ Weather Info  
-${📌}calc        🧮 Calculator  
-${📌}lyrics      🎤 Get Song Lyrics  
-${📌}reminder    ⏰ Set Reminder  
-${📌}gsearch     🌍 Google Search  
-${📌}wikipedia   📘 Wiki Summary  
-${📌}news        📰 Global News  
-${📌}covid       🦠 COVID Update  
-${📌}currency    💱 Exchange Rates  
+${prefix}shorturl    🔗 Shorten URL  
+${prefix}weather     ☁️ Weather Info  
+${prefix}calc        🧮 Calculator  
+${prefix}lyrics      🎤 Get Song Lyrics  
+${prefix}reminder    ⏰ Set Reminder  
+${prefix}gsearch     🌍 Google Search  
+${prefix}wikipedia   📘 Wiki Summary  
+${prefix}news        📰 Global News  
+${prefix}covid       🦠 COVID Update  
+${prefix}currency    💱 Exchange Rates  
 
 ╔══════════════════════════════╗
 ║ Thank you for using ${botName}!
