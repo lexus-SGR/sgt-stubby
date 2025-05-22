@@ -1,29 +1,42 @@
 module.exports = {
-  name: "antilink",
-  description: "Enable or disable anti-link in group.",
-  emoji: "🔗",
-  async execute(sock, msg, args, isAdmin, isBotAdmin, groupMetadata, db) {
-    const groupId = msg.key.remoteJid;
+  name: 'antilink',
+  description: 'Turn antilink protection on or off in group',
+  category: 'group',
+  async execute(sock, msg, args) {
+    const { from, isGroup, isGroupAdmin, body, sender } = msg;
 
-    if (!groupId.endsWith("@g.us"))
-      return await sock.sendMessage(groupId, { text: "This command only works in groups." });
+    if (!isGroup) {
+      await sock.sendMessage(from, { text: '❌ This command is only for groups.' }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
+      return;
+    }
 
-    if (!isAdmin)
-      return await sock.sendMessage(groupId, { text: "You must be an admin to toggle anti-link." });
+    if (!isGroupAdmin) {
+      await sock.sendMessage(from, { text: '⛔ Only admins can use this command.' }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: '⛔', key: msg.key } });
+      return;
+    }
 
-    if (!isBotAdmin)
-      return await sock.sendMessage(groupId, { text: "Bot needs admin rights to enforce anti-link." });
+    if (!args[0]) {
+      await sock.sendMessage(from, { text: 'ℹ️ Usage: !antilink on / off' }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: 'ℹ️', key: msg.key } });
+      return;
+    }
 
-    const status = args[0]?.toLowerCase();
-    if (!["on", "off"].includes(status))
-      return await sock.sendMessage(groupId, { text: "Usage: !antilink on/off" });
+    if (!global.antilink) global.antilink = {};
 
-    db.antilink = db.antilink || {};
-    db.antilink[groupId] = status === "on";
-
-    await sock.sendMessage(groupId, {
-      text: `Anti-link has been *${status.toUpperCase()}* for this group.`,
-      react: { text: "🔗", key: msg.key }
-    });
+    const setting = args[0].toLowerCase();
+    if (setting === 'on') {
+      global.antilink[from] = true;
+      await sock.sendMessage(from, { text: '✅ Antilink enabled! Group links will be blocked.' }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: '✅', key: msg.key } });
+    } else if (setting === 'off') {
+      delete global.antilink[from];
+      await sock.sendMessage(from, { text: '❌ Antilink disabled.' }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: '❌', key: msg.key } });
+    } else {
+      await sock.sendMessage(from, { text: '⚠️ Use: !antilink on / off' }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: '⚠️', key: msg.key } });
+    }
   }
-};
+}
