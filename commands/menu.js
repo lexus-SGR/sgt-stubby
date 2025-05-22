@@ -3,18 +3,18 @@ const path = require("path");
 
 module.exports = {
   name: "menu",
-  alias: ["help", "commands", "menutech"],
-  desc: "Display the full command list of SPD-XMD Bot",
-  category: "main",
+  description: "Display the full command list of SPD-XMD Bot",
   emoji: "📑",
-  async execute(m, { sock, command, prefix, pushName }) {
+  async execute(sock, msg) {
     const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
     const audioFile = fs.readFileSync(path.join(__dirname, "solitary.mp3"));
     const botName = "SPD-XMD";
     const ownerNumber = "255760317060";
+    const pushName = msg.pushName || "User";
+    const prefix = "!";
 
-    // React with emoji as acknowledgment
-    await sock.sendMessage(m.chat, { react: { text: "📑", key: m.key } });
+    // React
+    await sock.sendMessage(msg.key.remoteJid, { react: { text: "📑", key: msg.key } });
 
     let techMenu = `
 ╭━━〔 *SPD-XMD BOT MENU* 〕━━╮
@@ -113,12 +113,10 @@ ${prefix}currency    💱 Exchange Rates
 📦 GitHub: https://github.com/lexus-SGR/sgt-stubby.git
     `;
 
-    await sock.sendMessage(m.chat, {
+    await sock.sendMessage(msg.key.remoteJid, {
       image: menuImage,
       caption: techMenu,
-      audio: audioFile,
-      mimetype: "audio/mp3",
-      ptt: false,
+      footer: "SPD-XMD Menu",
       contextInfo: {
         externalAdReply: {
           title: "SPD-XMD WhatsApp Bot",
@@ -130,5 +128,12 @@ ${prefix}currency    💱 Exchange Rates
         }
       }
     });
-  },
+
+    // Optional: Send audio separately if needed
+    await sock.sendMessage(msg.key.remoteJid, {
+      audio: audioFile,
+      mimetype: "audio/mp4",
+      ptt: false
+    });
+  }
 };
