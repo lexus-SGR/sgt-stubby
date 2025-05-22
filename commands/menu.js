@@ -6,7 +6,7 @@ module.exports = {
   description: "Display the full command list of SPD-XMD Bot",
   emoji: "📑",
   async execute(sock, msg) {
-    const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
+    const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.jpg")); // tumia .jpg badala ya .png
     const audioFile = fs.readFileSync(path.join(__dirname, "solitary.mp3"));
     const botName = "SPD-XMD";
     const ownerNumber = "255760317060";
@@ -113,15 +113,18 @@ ${prefix}currency    💱 Exchange Rates
 📦 GitHub: https://github.com/lexus-SGR/sgt-stubby.git
     `;
 
+    // Tuma picha yenye menu inayoonekana vizuri
     await sock.sendMessage(msg.key.remoteJid, {
       image: menuImage,
       caption: techMenu,
-      footer: "SPD-XMD Menu",
+      mimetype: 'image/jpeg',
+      jpegThumbnail: menuImage,
       contextInfo: {
         externalAdReply: {
           title: "SPD-XMD WhatsApp Bot",
           body: "AI | Downloaders | Tools | Security",
           mediaType: 1,
+          previewType: "PHOTO",
           thumbnail: menuImage,
           renderLargerThumbnail: true,
           sourceUrl: "https://github.com/lexus-SGR/sgt-stubby.git"
@@ -129,11 +132,11 @@ ${prefix}currency    💱 Exchange Rates
       }
     });
 
-    // Optional: Send audio separately if needed
+    // Tuma audio kama voice note inayochezeka moja kwa moja
     await sock.sendMessage(msg.key.remoteJid, {
       audio: audioFile,
-      mimetype: "audio/mp4",
-      ptt: false
+      mimetype: "audio/mpeg",
+      ptt: true
     });
   }
 };
