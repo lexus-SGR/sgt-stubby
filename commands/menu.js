@@ -7,15 +7,14 @@ module.exports = {
   emoji: "📑",
   async execute(sock, msg) {
     try {
-      // Pata picha ya lexus AI HUB
-      const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
-
+      // Soma picha yako kutoka folder ile ile na index.js iko
+      const menuImage = fs.readFileSync(path.join(__dirname, "5efa69c34e338014b60a31cb6e308a27.png"));
+      
       const botName = "SPD-XMD";
       const ownerNumber = "255760317060";
       const pushName = msg.pushName || "User";
       const prefix = "!";
-
-      // Menu text
+      
       let techMenu = `
 ╭━━〔 *${botName} BOT MENU* 〕━━╮
 │ *User:* ${pushName}
@@ -132,7 +131,7 @@ ${prefix}currency    💱 Exchange Rates
         },
       });
 
-      // Optional: You can add reaction here if you want
+      // Optional: reaction emoji
       await sock.sendMessage(msg.key.remoteJid, {
         react: { text: "📑", key: msg.key },
       });
