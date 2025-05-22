@@ -6,11 +6,15 @@ module.exports = {
   alias: ["help", "commands", "menutech"],
   desc: "Display the full command list of SPD-XMD Bot",
   category: "main",
+  emoji: "📑",
   async execute(m, { sock, command, prefix, pushName }) {
     const menuImage = fs.readFileSync(path.join(__dirname, "lexus AI HUB.png"));
     const audioFile = fs.readFileSync(path.join(__dirname, "solitary.mp3"));
     const botName = "SPD-XMD";
     const ownerNumber = "255760317060";
+
+    // React with emoji as acknowledgment
+    await sock.sendMessage(m.chat, { react: { text: "📑", key: m.key } });
 
     let techMenu = `
 ╭━━〔 *SPD-XMD BOT MENU* 〕━━╮
