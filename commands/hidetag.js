@@ -1,26 +1,32 @@
 module.exports = {
-  name: 'hidetag',
-  description: 'Send a hidden message mentioning all group members',
-  category: 'group',
-  async execute(sock, m, args) {
-    if (!m.isGroup) {
-      return sock.sendMessage(m.chat, { text: '❌ This command only works in groups.' }, { quoted: m });
+  name: "hidetag",
+  description: "Send a hidden message mentioning all group members",
+  emoji: "👻",
+  async execute(sock, msg, args) {
+    if (!msg.key.remoteJid.endsWith("@g.us")) {
+      return sock.sendMessage(msg.key.remoteJid, {
+        text: "❌ This command only works in group chats.",
+      });
     }
 
-    const message = args.join(' ');
+    const message = args.join(" ");
     if (!message) {
-      return sock.sendMessage(m.chat, { text: '✍️ Please provide a message to send.' }, { quoted: m });
+      return sock.sendMessage(msg.key.remoteJid, {
+        text: "✍️ Please provide a message to send."
+      });
     }
 
-    // AutoReact emoji
-    await sock.sendMessage(m.chat, { react: { text: '👻', key: m.key } });
+    // React with emoji
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: { text: "👻", key: msg.key }
+    });
 
-    const groupMetadata = await sock.groupMetadata(m.chat);
-    const participants = groupMetadata.participants.map(p => p.id);
+    const metadata = await sock.groupMetadata(msg.key.remoteJid);
+    const members = metadata.participants.map(p => p.id);
 
-    await sock.sendMessage(m.chat, {
+    await sock.sendMessage(msg.key.remoteJid, {
       text: message,
-      mentions: participants
-    }, { quoted: m });
+      mentions: members
+    });
   }
 };
