@@ -4,6 +4,13 @@ module.exports = {
   name: "player",
   description: "Get an image of a football player",
   async execute(sock, msg, args) {
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: {
+        text: "⚽",
+        key: msg.key,
+      },
+    });
+
     if (!args.length) {
       return sock.sendMessage(msg.key.remoteJid, { text: "Please enter the name of the football player." });
     }
