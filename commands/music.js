@@ -5,6 +5,13 @@ module.exports = {
   name: "music",
   description: "Search and download music from YouTube",
   async execute(sock, msg, args) {
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: {
+        text: "🎵",
+        key: msg.key,
+      },
+    });
+
     if (!args.length) {
       return sock.sendMessage(msg.key.remoteJid, { text: "Please enter the name of the song." });
     }
