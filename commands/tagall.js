@@ -1,19 +1,26 @@
-module.exports = async (sock, msg, args, isGroupAdmin, participants, from, sender, OWNER_JID) => {
-  if (!isGroupAdmin && sender !== OWNER_JID) {
-    return await sock.sendMessage(from, { text: "⚠️ Admins only!" });
+module.exports = {
+  name: 'tagall',
+  description: 'Mention all group members in a message',
+  category: 'group',
+  async execute(sock, m, args) {
+    if (!m.isGroup) {
+      return sock.sendMessage(m.chat, { text: '❌ This command only works in groups.' }, { quoted: m });
+    }
+
+    // AutoReact emoji
+    await sock.sendMessage(m.chat, { react: { text: '📢', key: m.key } });
+
+    const groupMetadata = await sock.groupMetadata(m.chat);
+    const participants = groupMetadata.participants.map(p => p.id);
+
+    let text = '*📣 Group Members:*\n\n';
+    participants.forEach(p => {
+      text += `@${p.split('@')[0]}\n`;
+    });
+
+    await sock.sendMessage(m.chat, {
+      text: text,
+      mentions: participants
+    }, { quoted: m });
   }
-
-  let text = "📢 *TAG ALL MEMBERS:*\n\n";
-  participants.forEach((p, i) => {
-    text += `${i + 1}. @${p.split("@")[0]}\n`;
-  });
-
-  await sock.sendMessage(from, {
-    text,
-    mentions: participants,
-  });
-
-  await sock.sendMessage(from, {
-    react: { text: "📣", key: msg.key }
-  });
 };
