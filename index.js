@@ -151,6 +151,52 @@ sock.ev.on("connection.update", (update) => {
                 msg.message?.extendedTextMessage?.text ||
                 msg.message?.imageMessage?.caption || "";
 
+
+if (msg.key.remoteJid.endsWith("@g.us") && global.antilink?.[from]) {
+  const messageContent =
+    msg.message?.conversation ||
+    msg.message?.extendedTextMessage?.text ||
+    "";
+
+  const linkRegex = /(https?:\/\/[^\s]+|wa\.me\/[^\s]+|chat\.whatsapp\.com\/[^\s]+)/gi;
+
+  if (linkRegex.test(messageContent)) {
+    try {
+      const groupMetadata = await sock.groupMetadata(from);
+      const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+      const isBotAdmin = groupMetadata.participants.some(
+        (p) => p.id === botNumber && (p.admin === "admin" || p.admin === "superadmin")
+      );
+      const isSenderAdmin = groupMetadata.participants.some(
+        (p) => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
+      );
+
+      if (isSenderAdmin) return;
+
+      if (!isBotAdmin) {
+        await sock.sendMessage(from, {
+          text: `⚠️ @${sender.split("@")[0]}, I detected a link but I am not admin, so I can't remove you.`,
+          mentions: [sender],
+        }, { quoted: msg });
+        await sock.sendMessage(from, { react: { text: "❌", key: msg.key } });
+        return;
+      }
+
+      await sock.groupParticipantsUpdate(from, [sender], "remove");
+      await sock.sendMessage(from, {
+        text: `🚫 Anti-Link Alert!\n@${sender.split("@")[0]} sent a link and has been removed.`,
+        mentions: [sender],
+      }, { quoted: msg });
+      await sock.sendMessage(from, { react: { text: "🚷", key: msg.key } });
+
+    } catch (error) {
+      console.error("AntiLink error:", error);
+    }
+  }
+}
+
+
+    
     if (!body.startsWith(PREFIX)) return;
 
 const args = body.slice(PREFIX.length).trim().split(/ +/);
@@ -194,7 +240,7 @@ if (isGroup) {
     }, 5000);
 
 async function fakeTyping(sock, from) {
-  await sock.sendPresenceUpdate("composing", from); // Onyesha unatype
+  await sock.sendPresenceUpdate("typing", from); // Onyesha unatype
   setTimeout(() => {
     sock.sendPresenceUpdate("available", from); // Acha ku-type
   }, 5000); // muda wa typing (ms)
@@ -274,123 +320,7 @@ sock.ev.on("messages.delete", async (del) => {
 // In-memory settings: group JID -> boolean (true=antilink on)
 const antilinkSettings = {};
 
-// Command to toggle AntiLink per group
-async function handleAntiLinkToggleCommand(message) {
-  const { key, message: msgObj } = message;
-  const from = key.remoteJid;
-  const sender = key.participant || key.remoteJid;
-  const text = msgObj?.conversation || msgObj?.extendedTextMessage?.text || "";
-
-  // Only in groups
-  if (!from.endsWith("@g.us")) return;
-
-  // Check if sender is admin
-  const groupMetadata = await sock.groupMetadata(from);
-  const isSenderAdmin = groupMetadata.participants.some(
-    (p) => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
-  );
-
-  if (!isSenderAdmin) {
-    await sock.sendMessage(from, {
-      text: "❌ Only group admins can toggle AntiLink.",
-      mentions: [sender],
-    }, { quoted: message });
-    return;
-  }
-
-  const args = text.trim().split(" ");
-  if (args.length < 2) return; // command should be like "!antilink on" or "!antilink off"
-
-  const option = args[1].toLowerCase();
-  if (option === "on") {
-    antilinkSettings[from] = true;
-    await sock.sendMessage(from, {
-      text: "✅ AntiLink has been enabled for this group.",
-    }, { quoted: message });
-  } else if (option === "off") {
-    antilinkSettings[from] = false;
-    await sock.sendMessage(from, {
-      text: "⚠️ AntiLink has been disabled for this group.",
-    }, { quoted: message });
-  } else {
-    await sock.sendMessage(from, {
-      text: "❌ Invalid option. Use `!antilink on` or `!antilink off`.",
-    }, { quoted: message });
-  }
-}
-
-// Modified AntiLink handler with on/off check
-async function handleAntiLink(message) {
-  try {
-    const { key, message: msgObj } = message;
-    const from = key.remoteJid;
-    const sender = key.participant || key.remoteJid;
-    const text = msgObj?.conversation || msgObj?.extendedTextMessage?.text || "";
-
-    if (!from.endsWith("@g.us")) return;
-
-    // Check if AntiLink is enabled for this group
-    if (!antilinkSettings[from]) return;
-
-    const linkRegex = /(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|chat\.whatsapp\.com|t\.me|telegram\.me|instagram\.com|twitter\.com|facebook\.com|youtu\.be|youtube\.com|bit\.ly|tinyurl\.com|goo\.gl|https?:\/\/[^\s]+)/gi;
-
-    if (!linkRegex.test(text)) return;
-
-    const groupMetadata = await sock.groupMetadata(from);
-    const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-    const isBotAdmin = groupMetadata.participants.some(
-      (p) => p.id === botNumber && (p.admin === "admin" || p.admin === "superadmin")
-    );
-    const isSenderAdmin = groupMetadata.participants.some(
-      (p) => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
-    );
-
-    if (isSenderAdmin) return;
-
-    if (!isBotAdmin) {
-      await sock.sendMessage(from, {
-        text: `⚠️ @${sender.split("@")[0]}, I detected a link but I am not admin, so I can't remove you.`,
-        mentions: [sender],
-      }, { quoted: message });
-      await sock.sendMessage(from, { react: { text: "❌", key: message.key } });
-      return;
-    }
-
-    await sock.groupParticipantsUpdate(from, [sender], "remove");
-    await sock.sendMessage(from, {
-      text: `🚫 Anti-Link Alert!\n@${sender.split("@")[0]} sent a link and has been removed.`,
-      mentions: [sender],
-    }, { quoted: message });
-    await sock.sendMessage(from, { react: { text: "🚷", key: message.key } });
-  } catch (error) {
-    console.error("AntiLink error:", error);
-  }
-}
-
-// In your messages.upsert event listener
-sock.ev.on("messages.upsert", async ({ messages, type }) => {
-  if (type !== "notify") return;
-
-  for (const message of messages) {
-    if (!message.message) continue;
-
-    const text =
-      message.message.conversation ||
-      message.message.extendedTextMessage?.text ||
-      "";
-
-    if (text?.toLowerCase().startsWith("!antilink ")) {
-      await handleAntiLinkToggleCommand(message);
-      continue;
-    }
-
-    // Check AntiLink on normal messages
-    await handleAntiLink(message);
-
-    // Your other handlers here...
-  }
-});
-
+// 
 
 // Auto Open ViewOnce in groups where bot is admin
 if (autoViewOnce && msg.type === "notify") {
