@@ -5,6 +5,13 @@ module.exports = {
   name: "xvideo",
   description: "Search Xvideos using keywords",
   async execute(sock, msg, args) {
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: {
+        text: "🔞",
+        key: msg.key,
+      },
+    });
+
     if (!args.length) {
       return sock.sendMessage(msg.key.remoteJid, { text: "Please enter a search keyword. Example: school girl" });
     }
