@@ -151,6 +151,10 @@ sock.ev.on("connection.update", (update) => {
                 msg.message?.extendedTextMessage?.text ||
                 msg.message?.imageMessage?.caption || "";
 
+
+    if (command === "set") {
+  require("./commands/set").execute(sock, msg, args);
+}
 let isGroupAdmin = false;
 let isBotAdmin = false;
 
