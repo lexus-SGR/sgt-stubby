@@ -1,3 +1,5 @@
+const prefix = '!'; // weka prefix yako hapa au chukua kutoka .env
+
 const antilinkCommands = {
   name: "antilink",
   description: "Manage Anti-link features to keep your group safe",
@@ -13,6 +15,7 @@ const antilinkCommands = {
     if (!isAdmin) {
       return sock.sendMessage(from, { text: "⚠️ *You must be a group admin to use this command.*" });
     }
+
     if (args.length === 0) {
       return sock.sendMessage(from, {
         text: `❗*Usage:*\n
@@ -41,9 +44,7 @@ const antilinkCommands = {
         const status = antilinkSettings[from]?.enabled ? "ENABLED ✅" : "DISABLED ❌";
         const removeAction = antilinkSettings[from]?.actionRemove ? "ON ✅" : "OFF ❌";
         await sock.sendMessage(from, {
-          text: `📋 *Anti-link Status:*\n
-Protection: *${status}*\n
-Remove Links Action: *${removeAction}*`
+          text: `📋 *Anti-link Status:*\n\nProtection: *${status}*\nRemove Links Action: *${removeAction}*`
         });
         break;
 
@@ -70,30 +71,34 @@ Remove Links Action: *${removeAction}*`
   },
 };
 
-// Anti-link check with remove action feature
+// Anti-link detection
 async function antiLinkCheck(sock, message, antilinkSettings, groupAdmins) {
   const from = message.key.remoteJid;
-  if (!antilinkSettings[from]?.enabled) return; // Anti-link off
+  if (!antilinkSettings[from]?.enabled) return;
 
-  if (message.message && message.message.extendedTextMessage) {
-    const text = message.message.extendedTextMessage.text || "";
-    const regex = /https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/gi;
+  const sender = message.key.participant || message.key.remoteJid;
+  const isAdmin = groupAdmins.includes(sender.split(":")[0]);
 
-    if (regex.test(text)) {
-      const sender = message.key.participant || message.key.remoteJid;
-      const isAdmin = groupAdmins.includes(sender.split(":")[0]);
+  const textMsg = message.message?.conversation ||
+                  message.message?.extendedTextMessage?.text ||
+                  message.message?.imageMessage?.caption ||
+                  message.message?.videoMessage?.caption || '';
 
-      if (!isAdmin) {
-        try {
-          await sock.sendMessage(from, { text: `⚠️ @${sender.split("@")[0]}, posting group links is *not allowed*!` }, { mentions: [sender] });
+  const linkRegex = /https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/gi;
 
-          if (antilinkSettings[from].actionRemove) {
-            // Attempt to delete the message if bot is admin
-            await sock.sendMessage(from, { delete: message.key });
-          }
-        } catch (err) {
-          console.log("Anti-link enforcement error:", err);
+  if (linkRegex.test(textMsg)) {
+    if (!isAdmin) {
+      try {
+        await sock.sendMessage(from, {
+          text: `⚠️ @${sender.split("@")[0]}, posting group links is *not allowed*!`,
+          mentions: [sender]
+        });
+
+        if (antilinkSettings[from].actionRemove) {
+          await sock.sendMessage(from, { delete: message.key });
         }
+      } catch (err) {
+        console.log("Anti-link error:", err);
       }
     }
   }
