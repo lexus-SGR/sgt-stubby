@@ -1,3 +1,5 @@
+const path = require("path");
+
 module.exports = {
   name: "menu",
   description: "Display the full command list of SPD-XMD Bot",
@@ -9,109 +11,111 @@ module.exports = {
       const pushName = msg.pushName || "User";
       const prefix = "!";
 
-      let techMenu = `
-╭━━〔 *${botName} BOT MENU* 〕━━╮
-│ *User:* ${pushName}
-│ *Bot:* ${botName}
-│ *Owner:* wa.me/${ownerNumber}
-│ *Date:* ${new Date().toLocaleDateString()}
-╰━━━━━━━━━━━━━━━━━━━━━━╯
+      // Time-based greeting with emojis
+      const hour = new Date().getHours();
+      let greeting = "👋 Hello";
+      if (hour >= 4 && hour < 12) greeting = "🌅 Good Morning";
+      else if (hour >= 12 && hour < 17) greeting = "☀️ Good Afternoon";
+      else if (hour >= 17 && hour < 21) greeting = "🌇 Good Evening";
+      else greeting = "🌙 Good Night";
 
-───❖ *[ GENERAL COMMANDS ]* ❖───
-${prefix}ping     🥊 Check bot status
-${prefix}menu     📑 View all features
-${prefix}owner    👑 Bot Owner
-${prefix}runtime  ⏳ Bot Uptime
-${prefix}speed    🚀 Bot Speed
-${prefix}donate   ❤️ Support Bot
-${prefix}alive    ☑️ Bot Online Check
-${prefix}info     ℹ️ Bot Info
-${prefix}report   📝 Report Bug
+      // Menu text with extended commands list
+      const menuText = `
+╔═════════════════════════════════════════════════════════════════════════╗
+║             ✨🌟✨  WELCOME TO *${botName.toUpperCase()}* BOT ✨🌟✨            ║
+╠═════════════════════════════════════════════════════════════════════════╣
+║ ${greeting}, *${pushName}*                                                  
+║ 📅 Date: ${new Date().toLocaleDateString()}                                   
+║ 👑 Owner: wa.me/${ownerNumber}                                             
+╠═════════════════════════════════════════════════════════════════════════╣
 
-───❖ *[ AI & TECH TOOLS ]* ❖───
-${prefix}ai           🤖 ChatGPT Response
-${prefix}img          🧠 AI Image Generator
-${prefix}code         💻 AI Code Helper
-${prefix}pdf          📄 PDF Converter
-${prefix}qrcode       🔳 QR Generator
-${prefix}scanqr       🔍 QR Code Reader
-${prefix}translate    🌐 Translate Text
-${prefix}meme         😂 Random Memes
-${prefix}tts          🔊 Text-to-Speech
-${prefix}voicemaster  🗣 Voice Edit AI
+╭───────────────🔥  GENERAL COMMANDS 🔥───────────────╮
+│ 📝 ${prefix}menu           » Show this menu                       │
+│ 🥊 ${prefix}ping           » Check bot status                    │
+│ 👑 ${prefix}owner          » Bot owner info                      │
+│ ⏳ ${prefix}runtime        » Bot uptime                          │
+│ ❤️ ${prefix}donate         » Support the bot                     │
+│ 📞 ${prefix}callme         » Request a call from owner           │
+│ 📢 ${prefix}broadcast      » Send broadcast message              │
+╰────────────────────────────────────────────────────────╯
 
-───❖ *[ DOWNLOADERS ]* ❖───
-${prefix}ytmp3     🎵 YouTube MP3
-${prefix}ytmp4     🎬 YouTube Video
-${prefix}tiktok    🎶 TikTok No Watermark
-${prefix}fb        📘 Facebook Video
-${prefix}ig        📸 Instagram Reels
-${prefix}twitter   🐦 Twitter Video
-${prefix}pinterest 📍 Pinterest Image
-${prefix}mediafire 📥 Mediafire Link
-${prefix}apk       📱 APK Downloader
-${prefix}soundcloud 🎧 MP3 from SoundCloud
+╭───────────────🤖  AI & TECH TOOLS 🤖───────────────╮
+│ 🤖 ${prefix}ai             » Chat with AI                       │
+│ 🖼️ ${prefix}img            » Generate AI images                 │
+│ 🔊 ${prefix}tts            » Text to speech                     │
+│ 📄 ${prefix}pdfgen         » Generate PDF files                 │
+│ 🎙️ ${prefix}voicegen       » Generate voice notes               │
+│ 🧠 ${prefix}chatgpt        » ChatGPT conversation               │
+╰────────────────────────────────────────────────────╯
 
-───❖ *[ GROUP/ADMIN TOOLS ]* ❖───
-${prefix}antilink     🔗 Anti Group Link
-${prefix}kick         👢 Remove Member
-${prefix}add          ➕ Add Member
-${prefix}promote      📈 Make Admin
-${prefix}demote       📉 Remove Admin
-${prefix}tagall       🗣 Tag Everyone
-${prefix}hidetag      🫣 Hide Mention
-${prefix}welcome on/off ✋ Welcome Msg
-${prefix}group open/close 🔐 Group Lock
+╭───────────────🕌  ISLAMIC COMMANDS 🕌───────────────╮
+│ 📖 ${prefix}quran <chapter> » Read Quran chapter               │
+│ 🙏 ${prefix}dua            » Show popular dua                   │
+│ 🕰️ ${prefix}prayer         » Prayer times & schedule            │
+│ 📜 ${prefix}hadith         » Hadith of Prophet Muhammad          │
+│ 🕌 ${prefix}islamicquote    » Inspirational Islamic quotes       │
+╰────────────────────────────────────────────────────╯
 
-───❖ *[ GAMES & FUN ]* ❖───
-${prefix}truth       ❓ Truth Game
-${prefix}dare        ⚠️ Dare Game
-${prefix}guess       🎯 Guess the Word
-${prefix}tictactoe   ❎ TicTacToe Game
-${prefix}maths       ➗ Math Challenge
-${prefix}riddle      🧠 Brain Teaser
-${prefix}slot        🎰 Slot Machine
-${prefix}quotes      💬 Life Quotes
-${prefix}quiz        🧩 Daily Quiz
-${prefix}fact        📚 Random Fact
+╭───────────────⚽  SPORTS & GAMES ⚽───────────────╮
+│ ⚽ ${prefix}scores         » Live match scores                  │
+│ 📅 ${prefix}fixtures       » Upcoming matches                   │
+│ 🎰 ${prefix}slot           » Slot machine game                  │
+│ ❓ ${prefix}truth          » Truth game                         │
+│ 🧠 ${prefix}quiz           » Daily quiz                         │
+│ 🎮 ${prefix}tictactoe      » Play Tic Tac Toe                   │
+│ 🎲 ${prefix}dice           » Roll a dice                       │
+╰────────────────────────────────────────────────────╯
 
-───❖ *[ SECURITY & UTILITY ]* ❖───
-${prefix}block       🚫 Block User
-${prefix}unblock     ✅ Unblock User
-${prefix}ban         🔨 Ban User
-${prefix}unban       🆓 Unban User
-${prefix}antilink    🔗 Block Links
-${prefix}setprefix   🔧 Custom Prefix
-${prefix}setbio      📝 Set Group Bio
-${prefix}warn        ⚠️ Warn Member
-${prefix}lockcmd     🔒 Lock Command
-${prefix}checkcmd    🔍 Check Command
+╭───────────────📥  DOWNLOADERS 📥───────────────╮
+│ 🎵 ${prefix}ytmp3          » Download YouTube MP3               │
+│ 🎬 ${prefix}tiktok         » Download TikTok videos             │
+│ 📘 ${prefix}facebook       » Download Facebook videos           │
+│ 📺 ${prefix}spotify        » Download Spotify tracks            │
+│ 📱 ${prefix}igstory        » Download Instagram story           │
+╰────────────────────────────────────────────────╯
 
-───❖ *[ TOOLS & INTERNET ]* ❖───
-${prefix}shorturl    🔗 Shorten URL
-${prefix}weather     ☁️ Weather Info
-${prefix}calc        🧮 Calculator
-${prefix}lyrics      🎤 Get Song Lyrics
-${prefix}reminder    ⏰ Set Reminder
-${prefix}gsearch     🌍 Google Search
-${prefix}wikipedia   📘 Wiki Summary
-${prefix}news        📰 Global News
-${prefix}covid       🦠 COVID Update
-${prefix}currency    💱 Exchange Rates
+╭───────────────🛡️  SECURITY & UTILITY 🛡️───────────────╮
+│ 🚫 ${prefix}block          » Block a user                       │
+│ ✅ ${prefix}unblock        » Unblock a user                     │
+│ ⚙️ ${prefix}setprefix      » Change command prefix             │
+│ ☁️ ${prefix}weather        » Weather info                       │
+│ 🕵️‍♂️ ${prefix}whois         » Whois lookup                      │
+│ 🔍 ${prefix}google         » Google search                      │
+╰────────────────────────────────────────────────────╯
 
-╔══════════════════════════════╗
-║ Thank you for using ${botName}! ║
-╚══════════════════════════════╝
+╭───────────────🎉  FUN & ENTERTAINMENT 🎉───────────────╮
+│ 😂 ${prefix}joke           » Random joke                       │
+│ 🐦 ${prefix}meme           » Random meme                       │
+│ ❤️ ${prefix}love          » Love calculator                   │
+│ 🐱 ${prefix}cat            » Random cat image                  │
+│ 🐶 ${prefix}dog            » Random dog image                  │
+│ 🗣️ ${prefix}simi           » Chat with simi bot                │
+╰────────────────────────────────────────────────────╯
 
-📦 GitHub: [https://github.com/lexus-SGR/sgt-stubby.git](https://github.com/lexus-SGR/sgt-stubby.git)
-`;
+╭───────────────🛠️  TOOLS & OTHERS 🛠️───────────────╮
+│ 📝 ${prefix}reminder       » Set a reminder                    │
+│ ⏰ ${prefix}timer          » Set a timer                       │
+│ 📅 ${prefix}calendar       » Show calendar                    │
+│ 🗂️ ${prefix}notes          » Manage notes                      │
+│ 🔢 ${prefix}calc           » Calculator                       │
+│ 🌐 ${prefix}translate      » Translate text                    │
+╰────────────────────────────────────────────────────╯
 
-      // Tuma menu kama text tu
+╔═════════════════════════════════════════════════════════════════════════╗
+║               ✨✨ THANK YOU FOR USING *${botName}* BOT! ✨✨               ║
+║              📦 GitHub: https://github.com/lexus-SGR/sgt-stubby.git        ║
+╚═════════════════════════════════════════════════════════════════════════╝
+      `;
+
+      // Send the benwhittaker.png image with caption
+      const imagePath = path.resolve(__dirname, "./media/benwhittaker.png");
+
       await sock.sendMessage(msg.key.remoteJid, {
-        text: techMenu,
+        image: { url: imagePath },
+        caption: menuText,
       });
 
-      // Optional: reaction emoji
+      // Reaction emoji
       await sock.sendMessage(msg.key.remoteJid, {
         react: { text: "📑", key: msg.key },
       });
