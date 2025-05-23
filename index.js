@@ -9,8 +9,8 @@ app.listen(process.env.PORT || 3000, () => {
 require('events').EventEmitter.defaultMaxListeners = 100;
 
 const OWNER_JID = "255760317060@s.whatsapp.net"; // Owner number
-const antiLinkGroups = {};
-const antiFakeGroups = {};
+const antiLinkGroups = true;
+const antiFakeGroups = true;
 const autoViewStatus = true;
 const autoViewOnce = true;
 
@@ -60,7 +60,7 @@ function autoBio(sock) {
     "🌍 Made for Tanzania & Beyond"
   ];
 
-  let index = 0;
+  let index = 2;
 
   setInterval(async () => {
     try {
@@ -151,6 +151,10 @@ sock.ev.on("connection.update", (update) => {
                 msg.message?.extendedTextMessage?.text ||
                 msg.message?.imageMessage?.caption || "";
 
+    if (!body.startsWith(PREFIX)) return;
+
+const args = body.slice(PREFIX.length).trim().split(/ +/);
+const command = args.shift().toLowerCase();
 
     if (command === "set") {
   require("./commands/set").execute(sock, msg, args);
@@ -189,25 +193,33 @@ if (isGroup) {
       sock.sendPresenceUpdate("available", from);
     }, 5000);
 
-sock.ev.on("message-status.update", async (status) => {
-  if (!autoViewStatus) return;
-  try {
-    const jid = status.key.remoteJid;
-    if (jid?.includes("status@broadcast")) {
-      await sock.readMessages([status.key]);
+async function fakeTyping(sock, from) {
+  await sock.sendPresenceUpdate("composing", from); // Onyesha unatype
+  setTimeout(() => {
+    sock.sendPresenceUpdate("available", from); // Acha ku-type
+  }, 5000); // muda wa typing (ms)
+}
+    
+for (const message of messages) {
+    const jid = message.key.remoteJid;
 
-      // Add emoji reaction after viewing status
-      await sock.sendMessage(jid, {
-        react: {
-          text: "👀", // Emoji reaction
-          key: status.key,
-        },
-      });
+    if (jid && jid.includes("status@broadcast")) {
+      try {
+        if (process.env.AUTO_VIEW_STATUS === "on") {
+          await sock.readMessages([message.key]);
+          await sock.sendMessage(jid, {
+            react: {
+              text: "👀",
+              key: message.key,
+            },
+          });
+        }
+      } catch (e) {
+        console.error("Auto View Status Error:", e);
+      }
     }
-  } catch (e) {
-    console.error("Auto View Status Error:", e);
   }
-});
+    
 sock.ev.on("group-participants.update", async (update) => {
   try {
     if (!antiFakeGroups[update.id]) return;
