@@ -25,32 +25,4 @@ ${reply}` });
 
 } };
 
-// AI command: imagegen module.exports = { name: "imagegen", description: "Generate an image from a text prompt using AI", emoji: "🌈", async execute(sock, msg, args, openai) { await sock.sendMessage(msg.key.remoteJid, { react: { text: "🌈", key: msg.key } });
-
-if (!args || args.length === 0) {
-  return await sock.sendMessage(msg.key.remoteJid, {
-    text: "Please provide a prompt. Example: *imagegen A futuristic city at sunset*"
-  });
-}
-
-try {
-  const prompt = args.join(" ");
-  const response = await openai.createImage({
-    prompt: prompt,
-    n: 1,
-    size: "512x512"
-  });
-
-  const imageUrl = response.data.data[0].url;
-  await sock.sendMessage(msg.key.remoteJid, {
-    image: { url: imageUrl },
-    caption: `🌈 *AI Generated Image for:* ${prompt}`
-  });
-
-} catch (err) {
-  console.error("Image generation error:", err);
-  await sock.sendMessage(msg.key.remoteJid, { text: "❌ Failed to generate image. Try again later." });
-}
-
-} };
 
