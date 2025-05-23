@@ -2,36 +2,33 @@ const axios = require("axios");
 
 module.exports = {
   name: "player",
-  description: "Get an image of a football player",
-  async execute(sock, msg, args) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      react: {
-        text: "⚽",
-        key: msg.key,
-      },
-    });
-
-    if (!args.length) {
-      return sock.sendMessage(msg.key.remoteJid, { text: "Please enter the name of the football player." });
+  description: "Search and send a photo of a football player",
+  async execute(sock, msg, args, from) {
+    const playerName = args.join(" ");
+    if (!playerName) {
+      return await sock.sendMessage(from, { text: "Please provide a player name." }, { quoted: msg });
     }
 
-    const query = args.join(" ");
-    const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&client_id=YOUR_UNSPLASH_API_KEY`;
-
     try {
-      const res = await axios.get(url);
-      const photo = res.data.results[0];
-      if (!photo) {
-        return sock.sendMessage(msg.key.remoteJid, { text: "No image found." });
-      }
+      // Emoji reaction
+      await sock.sendMessage(from, {
+        react: {
+          text: "⚽", // Emoji ya mpira
+          key: msg.key
+        }
+      });
 
-      await sock.sendMessage(msg.key.remoteJid, {
-        image: { url: photo.urls.regular },
-        caption: `*${query}*`
+      const res = await axios.get(`https://api.unsplash.com/photos/random?query=${playerName}&client_id=${process.env.UNSPLASH_KEY}`);
+      const imageUrl = res.data.urls.small;
+
+      await sock.sendMessage(from, {
+        image: { url: imageUrl },
+        caption: `Here is a photo of ${playerName}`
       }, { quoted: msg });
+
     } catch (err) {
       console.error(err);
-      sock.sendMessage(msg.key.remoteJid, { text: "An error occurred while fetching the image." });
+      await sock.sendMessage(from, { text: "Could not find image." }, { quoted: msg });
     }
   }
 };
