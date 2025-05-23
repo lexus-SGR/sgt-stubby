@@ -1,26 +1,28 @@
 module.exports = {
-  name: 'tagall',
-  description: 'Mention all group members in a message',
-  category: 'group',
-  async execute(sock, m, args) {
-    if (!m.isGroup) {
-      return sock.sendMessage(m.chat, { text: '❌ This command only works in groups.' }, { quoted: m });
+  name: "tagall",
+  description: "Mention all group members in the group",
+  emoji: "📢",
+  async execute(sock, msg) {
+    if (!msg.key.remoteJid.endsWith("@g.us")) {
+      return sock.sendMessage(msg.key.remoteJid, {
+        text: "❌ This command only works in group chats.",
+      });
     }
 
-    // AutoReact emoji
-    await sock.sendMessage(m.chat, { react: { text: '📢', key: m.key } });
-
-    const groupMetadata = await sock.groupMetadata(m.chat);
-    const participants = groupMetadata.participants.map(p => p.id);
-
-    let text = '*📣 Group Members:*\n\n';
-    participants.forEach(p => {
-      text += `@${p.split('@')[0]}\n`;
+    // React with emoji
+    await sock.sendMessage(msg.key.remoteJid, {
+      react: { text: "📢", key: msg.key }
     });
 
-    await sock.sendMessage(m.chat, {
-      text: text,
-      mentions: participants
-    }, { quoted: m });
+    const metadata = await sock.groupMetadata(msg.key.remoteJid);
+    const members = metadata.participants.map(p => p.id);
+
+    let mentionText = "*📢 Tagging all members:*\n\n";
+    mentionText += members.map(m => `@${m.split("@")[0]}`).join("\n");
+
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: mentionText,
+      mentions: members
+    });
   }
 };
