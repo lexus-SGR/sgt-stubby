@@ -1,54 +1,21 @@
 module.exports = {
   name: "kick",
-  description: "Remove a user from the group.",
-  emoji: "🥾",
+  description: "Remove a member from the group. (Admin only)",
+  emoji: "👢",
+  async execute(sock, msg, args) {
+    if (!msg.key.remoteJid.endsWith("@g.us")) return sock.sendMessage(msg.key.remoteJid, { text: "❌ Use this command only in groups." });
 
-  async execute(sock, msg, args, isAdmin, isBotAdmin, groupMetadata) {
-    const from = msg.key.remoteJid;
-    const sender = msg.key.participant || msg.key.remoteJid;
-    const ownerJid = "255760317060@s.whatsapp.net"; // badilisha na yako kama si sahihi
+    const isAdmin = (await sock.groupMetadata(msg.key.remoteJid)).participants.find(p => p.id === msg.key.participant).admin;
+    if (!isAdmin) return sock.sendMessage(msg.key.remoteJid, { text: "❌ You must be an admin to use this." });
 
-    if (!from.endsWith("@g.us")) return;
-
-    if (!isAdmin && sender !== ownerJid) {
-      return sock.sendMessage(from, { text: "⛔ You must be a group admin to use this command." });
-    }
-
-    if (!isBotAdmin) {
-      return sock.sendMessage(from, { text: "⚠️ I need admin rights to kick members." });
-    }
-
-    // Target user: mention or reply
-    let targetJid = null;
-
-    const mentioned = msg.message?.extendedTextMessage?.contextInfo?.mentionedJid;
-    if (mentioned && mentioned.length > 0) {
-      targetJid = mentioned[0];
-    }
-
-    const quoted = msg.message?.extendedTextMessage?.contextInfo?.participant;
-    if (!targetJid && quoted) {
-      targetJid = quoted;
-    }
-
-    if (!targetJid) {
-      return sock.sendMessage(from, { text: "⚠️ Tag or reply to the user you want to kick." });
-    }
-
-    const participantIds = groupMetadata.participants.map(p => p.id);
-    if (!participantIds.includes(targetJid)) {
-      return sock.sendMessage(from, { text: "❌ The user is not in this group." });
-    }
+    const mentioned = msg.message.extendedTextMessage.contextInfo.mentionedJid;
+    if (!mentioned || mentioned.length === 0) return sock.sendMessage(msg.key.remoteJid, { text: "⚠️ Tag a user to kick." });
 
     try {
-      await sock.groupParticipantsUpdate(from, [targetJid], "remove");
-      await sock.sendMessage(from, {
-        text: `✅ Kicked: @${targetJid.split("@")[0]}`,
-        mentions: [targetJid],
-      });
-    } catch (err) {
-      console.error("Kick error:", err);
-      await sock.sendMessage(from, { text: "❌ Failed to kick the user." });
+      await sock.groupRemove(msg.key.remoteJid, mentioned);
+      await sock.sendMessage(msg.key.remoteJid, { text: `✅ Removed: @${mentioned[0].split("@")[0]}`, mentions: mentioned });
+    } catch (error) {
+      await sock.sendMessage(msg.key.remoteJid, { text: "❌ Failed to remove member." });
     }
   }
 };
