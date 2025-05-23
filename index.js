@@ -6,7 +6,7 @@ app.listen(process.env.PORT || 3000, () => {
   console.log("Server running on port " + (process.env.PORT || 3000));
 });
 
-require('events').EventEmitter.defaultMaxListeners = 50;
+require('events').EventEmitter.defaultMaxListeners = 100;
 
 const OWNER_JID = "255760317060@s.whatsapp.net"; // Owner number
 const antiLinkGroups = {};
@@ -14,6 +14,7 @@ const antiFakeGroups = {};
 const autoViewStatus = true;
 const autoViewOnce = true;
 
+require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const P = require("pino");
