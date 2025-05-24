@@ -71,15 +71,28 @@ async function startBot() {
       `;
       await sock.sendMessage(OWNER_JID, { text: menu, mentions: [OWNER_JID] });
 
-      if (AUTO_BIO) {
-        try {
-          const newBio = `🤖 Online | Prefix: ${PREFIX}`;
-          await sock.updateProfileStatus(newBio);
-          console.log("✅ Auto Bio updated:", newBio);
-        } catch (err) {
-          console.error("❌ Failed to update bio:", err.message);
-        }
-      }
+if (AUTO_BIO) {
+  try {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString('en-GB'); // e.g. 24/05/2025
+    const quotes = [
+      "Learning never exhausts the mind.",
+      "Laughter is timeless, imagination has no age.",
+      "The best way to predict the future is to create it.",
+      "Why don’t scientists trust atoms? Because they make up everything!",
+      "Education is the most powerful weapon you can use to change the world.",
+      "Why don’t skeletons fight each other? They don’t have the guts.",
+      "Entertainment is the spark that lights the fire of learning!"
+    ];
+    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+
+    const newBio = `👑 Ben Whittaker | 👤 Fatuma | 📅 ${dateStr} | ✨ ${randomQuote} ✨ | ❤️ I love you Iren-Lovenes ❤️`;
+    await sock.updateProfileStatus(newBio);
+    console.log("✅ Auto Bio updated:", newBio);
+  } catch (err) {
+    console.error("❌ Failed to update bio:", err.message);
+  }
+}    
     }
   });
 
