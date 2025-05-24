@@ -1,20 +1,13 @@
-
 require('events').EventEmitter.defaultMaxListeners = 100;
 
-const app = express();
-app.get("/", (req, res) => res.send("Fatuma WhatsApp Bot is running!"));
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running on port " + (process.env.PORT || 3000));
-});
-
 const express = require("express");
-const makeWASocket =
 const fs = require("fs");
 const path = require("path");
 const P = require("pino");
 const axios = require("axios");
 const cheerio = require("cheerio");
 const { Boom } = require("@hapi/boom");
+const qrcode = require("qrcode-terminal");
 const {
   makeWASocket,
   useMultiFileAuthState,
@@ -23,8 +16,18 @@ const {
   makeCacheableSignalKeyStore
 } = require("@whiskeysockets/baileys");
 
+// Setup Express server
+const app = express();
+app.get("/", (req, res) => res.send("Fatuma WhatsApp Bot is running!"));
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Server running on port " + (process.env.PORT || 3000));
+});
+
+// Configuration
 const OWNER_JID = "255760317060@s.whatsapp.net";
 const PREFIX = "!";
+const AUTO_BIO = true;
+const AUTO_TYPING = true;
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
@@ -54,12 +57,12 @@ async function startBot() {
       console.log("✅ Bot connected!");
 
       const menu = `
-🔰 *WELCOME TO BEN WHITTAKER TECH BOT* 🔰
+🔰 *WELCOME TO FATUMA WHATSAPP BOT* 🔰
 
 ✅ *Bot is now online and connected successfully!*
 
 🔧 *Prefix:* ${PREFIX}
-🤖 *Bot Name:* BEN WHITTAKER TECH
+🤖 *Bot Name:* FATUMA BOT
 👑 *Owner:* @${OWNER_JID.split("@")[0]}
 
 ℹ️ Type *${PREFIX}menu* or *${PREFIX}help* to see available commands.
@@ -81,7 +84,7 @@ async function startBot() {
   });
 
   const warnedUsers = {};
-  
+
   const commands = new Map();
   const commandsPath = path.join(__dirname, "commands");
   if (fs.existsSync(commandsPath)) {
@@ -94,7 +97,6 @@ async function startBot() {
     console.log("Created commands folder.");
   }
 
-  // Listen for incoming messages
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message) return;
@@ -105,45 +107,41 @@ async function startBot() {
     const body = msg.message?.conversation ||
                 msg.message?.extendedTextMessage?.text ||
                 msg.message?.imageMessage?.caption || "";
-  
-  
-    // Auto Typing/Recording
+
     if (AUTO_TYPING) {
       await sock.sendPresenceUpdate('composing', from);
       setTimeout(() => {
         sock.sendPresenceUpdate('paused', from);
-          },  3000);
-    
-    // FAKE RECORDING PRESENCE
-    await sock.sendPresenceUpdate("recording", from);
-    setTimeout(() => {
-      sock.sendPresenceUpdate("available", from);
-    }, 5000);
+      }, 3000);
+      await sock.sendPresenceUpdate("recording", from);
+      setTimeout(() => {
+        sock.sendPresenceUpdate("available", from);
+      }, 5000);
+    }
 
-    // Anti-Link Detector
-    if (jid.endsWith("@g.us") && text.includes("https://chat.whatsapp.com/")) {
+    if (from.endsWith("@g.us") && body.includes("https://chat.whatsapp.com/")) {
       try {
-        const groupMetadata = await sock.groupMetadata(jid);
+        const groupMetadata = await sock.groupMetadata(from);
         const isAdmin = groupMetadata.participants.find(p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin"));
         const botAdmin = groupMetadata.participants.find(p => p.id === sock.user.id && (p.admin === "admin" || p.admin === "superadmin"));
 
         if (botAdmin) {
           if (isAdmin) {
-            await sock.sendMessage(jid, { text: `⚠️ Admin @${sender.split("@")[0]} posted a group link. Skipping remove.`, mentions: [sender] });
+            await sock.sendMessage(from, { text: `⚠️ Admin @${sender.split("@")[0]} posted a group link. Skipping remove.`, mentions: [sender] });
           } else {
-            await sock.sendMessage(jid, { text: `🚫 Link detected! Removing @${sender.split("@")[0]}...`, mentions: [sender] });
-            await sock.groupParticipantsUpdate(jid, [sender], "remove");
+            await sock.sendMessage(from, { text: `🚫 Link detected! Removing @${sender.split("@")[0]}...`, mentions: [sender] });
+            await sock.groupParticipantsUpdate(from, [sender], "remove");
           }
         } else {
           warnedUsers[sender] = (warnedUsers[sender] || 0) + 1;
-          await sock.sendMessage(jid, { text: `⚠️ @${sender.split("@")[0]}, stop posting links. Warn: ${warnedUsers[sender]}`, mentions: [sender] });
+          await sock.sendMessage(from, { text: `⚠️ @${sender.split("@")[0]}, stop posting links. Warn: ${warnedUsers[sender]}`, mentions: [sender] });
         }
       } catch (e) {
         console.error("Antilink error:", e);
       }
     }
 
-Command execution
+    // Command Execution
     for (const [name, command] of commands) {
       if (body.toLowerCase().startsWith(PREFIX + name)) {
         try {
@@ -155,7 +153,6 @@ Command execution
         break;
       }
     }
-    
   });
 }
 
