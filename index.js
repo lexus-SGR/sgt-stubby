@@ -28,6 +28,8 @@ const OWNER_JID = "255760317060@s.whatsapp.net";
 const PREFIX = "!";
 const AUTO_BIO = true;
 const AUTO_TYPING = true;
+const AUTO_VIEW_ONCE = process.env.AUTO_VIEW_ONCE === "on" ? true : false;
+const AUTO_VIEW_STATUS = process.env.AUTO_VIEW_STATUS === "on" ? true : false;
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
