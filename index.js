@@ -123,6 +123,81 @@ if (AUTO_BIO) {
                 msg.message?.extendedTextMessage?.text ||
                 msg.message?.imageMessage?.caption || "";
 
+    async function isUserAdmin(sock, groupId, userId) {
+  try {
+    const metadata = await sock.groupMetadata(groupId);
+    const participant = metadata.participants.find(p => p.id === userId);
+    return participant && (participant.admin === "admin" || participant.admin === "superadmin");
+  } catch {
+    return false;
+  }
+}
+//==== AUTO OPEN VIEW ONCE MESSAGE ====
+  if (AUTO_VIEW_ONCE) {
+    try {
+      // Check if message has viewOnceMessage
+      const viewOnceMsg = msg.message?.viewOnceMessage;
+      if (viewOnceMsg) {
+        // For groups, check if sender is admin
+        if (!isGroup || (await isUserAdmin(sock, from, sender))) {
+          // Resend the message content without viewOnce restriction
+          const originalMsg = viewOnceMsg.message;
+          await sock.sendMessage(from, originalMsg, { quoted: msg });
+          console.log(`✅ Auto opened viewOnce message from ${sender} in ${from}`);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error auto-opening viewOnce message:", err);
+    }
+  }
+
+  // ==== AUTO VIEW STATUS AND REACT ====
+  if (AUTO_VIEW_STATUS) {
+    try {
+      // When user sends a status (story), it arrives as a message with protocolMessage of type 'status'
+      const protocolMsg = msg.message?.protocolMessage;
+      if (protocolMsg && protocolMsg.type === 5) { // 5 means status update
+        const statusOwner = protocolMsg.key.participant || protocolMsg.key.remoteJid;
+
+        // Mark status as viewed
+        await sock.sendReadReceipt(from, statusOwner, [protocolMsg.key.id]);
+
+        // React with emojis 💝....🚀....😁...👌
+        await sock.sendMessage(from, {
+          react: {
+            text: "💝",
+            key: protocolMsg.key,
+          }
+        });
+
+        await sock.sendMessage(from, {
+          react: {
+            text: "🚀",
+            key: protocolMsg.key,
+          }
+        });
+
+        await sock.sendMessage(from, {
+          react: {
+            text: "😁",
+            key: protocolMsg.key,
+          }
+        });
+
+        await sock.sendMessage(from, {
+          react: {
+            text: "👌",
+            key: protocolMsg.key,
+          }
+        });
+
+        console.log(`✅ Auto viewed and reacted to status from ${statusOwner}`);
+      }
+    } catch (err) {
+      console.error("❌ Error auto-viewing/reacting status:", err);
+    }
+  }
+
     if (AUTO_TYPING) {
       await sock.sendPresenceUpdate('composing', from);
       setTimeout(() => {
