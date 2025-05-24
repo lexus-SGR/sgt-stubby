@@ -8,11 +8,6 @@ app.listen(process.env.PORT || 3000, () => {
 
 require('events').EventEmitter.defaultMaxListeners = 100;
 
-const OWNER_JID = "255760317060@s.whatsapp.net"; // Owner number
-const antiLinkGroups = true;
-const antiFakeGroups = true;
-const autoViewStatus = true;
-const autoViewOnce = true;
 
 require("dotenv").config();
 const fs = require("fs");
@@ -137,151 +132,174 @@ sock.ev.on("connection.update", (update) => {
     fs.mkdirSync(commandsPath);
     console.log("Created commands folder.");
   }
- 
 
-  // Listen for incoming messages
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message) return;
+  // In-memory settings
+const antiFakeGroups = {};
+const antilinkSettings = {};
 
-    const from = msg.key.remoteJid;
-    const isGroup = from.endsWith("@g.us");
-    const sender = msg.key.participant || msg.key.remoteJid;
-    const body = msg.message?.conversation ||
-                msg.message?.extendedTextMessage?.text ||
-                msg.message?.imageMessage?.caption || "";
+// Main message handler
+sock.ev.on("messages.upsert", async ({ messages }) => {
+  const msg = messages[0];
+  if (!msg.message) return;
 
+  const from = msg.key.remoteJid;
+  const isGroup = from.endsWith("@g.us");
+  const sender = msg.key.participant || msg.key.remoteJid;
+  const body = msg.message?.conversation ||
+               msg.message?.extendedTextMessage?.text ||
+               msg.message?.imageMessage?.caption || "";
 
-if (msg.key.remoteJid.endsWith("@g.us") && global.antilink?.[from]) {
-  const messageContent =
-    msg.message?.conversation ||
-    msg.message?.extendedTextMessage?.text ||
-    "";
+  // ANTI-LINK FEATURE
+  if (isGroup && antilinkSettings[from]) {
+    const linkRegex = /(https?:\/\/[^\s]+|wa\.me\/[^\s]+|chat\.whatsapp\.com\/[^\s]+)/gi;
+    if (linkRegex.test(body)) {
+      try {
+        const metadata = await sock.groupMetadata(from);
+        const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+        const botAdmin = metadata.participants.find(p => p.id === botJid)?.admin;
+        const senderAdmin = metadata.participants.find(p => p.id === sender)?.admin;
 
-  const linkRegex = /(https?:\/\/[^\s]+|wa\.me\/[^\s]+|chat\.whatsapp\.com\/[^\s]+)/gi;
+        if (!botAdmin) {
+          await sock.sendMessage(from, {
+            text: `⚠️ @${sender.split("@")[0]} sent a link but I'm not admin.`,
+            mentions: [sender]
+          }, { quoted: msg });
+          return;
+        }
 
-  if (linkRegex.test(messageContent)) {
-    try {
-      const groupMetadata = await sock.groupMetadata(from);
-      const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-      const isBotAdmin = groupMetadata.participants.some(
-        (p) => p.id === botNumber && (p.admin === "admin" || p.admin === "superadmin")
-      );
-      const isSenderAdmin = groupMetadata.participants.some(
-        (p) => p.id === sender && (p.admin === "admin" || p.admin === "superadmin")
-      );
-
-      if (isSenderAdmin) return;
-
-      if (!isBotAdmin) {
-        await sock.sendMessage(from, {
-          text: `⚠️ @${sender.split("@")[0]}, I detected a link but I am not admin, so I can't remove you.`,
-          mentions: [sender],
-        }, { quoted: msg });
-        await sock.sendMessage(from, { react: { text: "❌", key: msg.key } });
-        return;
+        if (!senderAdmin) {
+          await sock.groupParticipantsUpdate(from, [sender], "remove");
+          await sock.sendMessage(from, {
+            text: `🚫 Anti-Link: @${sender.split("@")[0]} removed.`,
+            mentions: [sender]
+          }, { quoted: msg });
+        }
+      } catch (e) {
+        console.error("AntiLink Error:", e);
       }
-
-      await sock.groupParticipantsUpdate(from, [sender], "remove");
-      await sock.sendMessage(from, {
-        text: `🚫 Anti-Link Alert!\n@${sender.split("@")[0]} sent a link and has been removed.`,
-        mentions: [sender],
-      }, { quoted: msg });
-      await sock.sendMessage(from, { react: { text: "🚷", key: msg.key } });
-
-    } catch (error) {
-      console.error("AntiLink error:", error);
     }
   }
-}
 
+  // FAKE RECORDING PRESENCE
+  await sock.sendPresenceUpdate("recording", from);
+  setTimeout(() => {
+    sock.sendPresenceUpdate("available", from);
+  }, 3000);
 
-    
-    if (!body.startsWith(PREFIX)) return;
-
-const args = body.slice(PREFIX.length).trim().split(/ +/);
-const command = args.shift().toLowerCase();
-
-    if (command === "set") {
-  require("./commands/set").execute(sock, msg, args);
-}
-let isGroupAdmin = false;
-let isBotAdmin = false;
-
-if (isGroup) {
-  try {
-    const groupMetadata = await sock.groupMetadata(from);
-    const participants = groupMetadata.participants || [];
-
-    const senderData = participants.find(p => p.id === sender);
-    const botData = participants.find(p => p.id === sock.user.id.split(":")[0] + "@s.whatsapp.net");
-
-    isGroupAdmin = senderData?.admin !== null && senderData?.admin !== undefined;
-    isBotAdmin = botData?.admin !== null && botData?.admin !== undefined;
-  } catch (e) {
-    console.error("Group admin check failed:", e);
+  // AUTO VIEW STATUS
+  if (msg.key.remoteJid === "status@broadcast" && process.env.AUTO_VIEW_STATUS === "on") {
+    try {
+      await sock.readMessages([msg.key]);
+      await sock.sendMessage("status@broadcast", {
+        react: { text: "👀", key: msg.key }
+      });
+    } catch (e) {
+      console.error("Auto View Status Error:", e);
+    }
+    return;
   }
-}
 
-  // Hapa unaweza check amri za bot zako:
-  if (body.toLowerCase() === `${PREFIX}viewstatus`) {
+  // Ignore if message doesn't start with prefix
+  if (!body.startsWith(PREFIX)) return;
+
+  const args = body.slice(PREFIX.length).trim().split(/ +/);
+  const command = args.shift().toLowerCase();
+
+  // GROUP ADMIN CHECK
+  let isGroupAdmin = false;
+  let isBotAdmin = false;
+
+  if (isGroup) {
+    try {
+      const metadata = await sock.groupMetadata(from);
+      const participants = metadata.participants || [];
+      const senderData = participants.find(p => p.id === sender);
+      const botData = participants.find(p => p.id === sock.user.id.split(":")[0] + "@s.whatsapp.net");
+      isGroupAdmin = senderData?.admin != null;
+      isBotAdmin = botData?.admin != null;
+    } catch (e) {
+      console.error("Group admin check failed:", e);
+    }
+  }
+
+  // !set command
+  if (command === "set") {
+    require("./commands/set").execute(sock, msg, args);
+  }
+
+  // !viewstatus command
+  if (command === "viewstatus") {
     await onViewStatus(sock, from, sender);
   }
 
-  if (!isGroup && body.toLowerCase() === `${PREFIX}startbio`) {
+  // !startbio command
+  if (!isGroup && command === "startbio") {
     autoBio(sock);
   }
 
-    
-    // FAKE RECORDING PRESENCE
-    await sock.sendPresenceUpdate("recording", from);
-    setTimeout(() => {
-      sock.sendPresenceUpdate("available", from);
-    }, 5000);
-
-async function fakeTyping(sock, from) {
-  await sock.sendPresenceUpdate("typing", from); // Onyesha unatype
-  setTimeout(() => {
-    sock.sendPresenceUpdate("available", from); // Acha ku-type
-  }, 5000); // muda wa typing (ms)
-}
-    
-for (const message of messages) {
-    const jid = message.key.remoteJid;
-
-    if (jid && jid.includes("status@broadcast")) {
-      try {
-        if (process.env.AUTO_VIEW_STATUS === "on") {
-          await sock.readMessages([message.key]);
-          await sock.sendMessage(jid, {
-            react: {
-              text: "👀",
-              key: message.key,
-            },
-          });
-        }
-      } catch (e) {
-        console.error("Auto View Status Error:", e);
-      }
+  // !antifake command
+  if (isGroup && command === "antifake") {
+    if (!isGroupAdmin && sender !== OWNER_JID) {
+      return sock.sendMessage(from, { text: "⚠️ Admins only!" });
+    }
+    const option = args[0];
+    if (option === "on") {
+      antiFakeGroups[from] = true;
+      await sock.sendMessage(from, { text: "✅ Anti-Fake enabled." });
+    } else if (option === "off") {
+      delete antiFakeGroups[from];
+      await sock.sendMessage(from, { text: "❌ Anti-Fake disabled." });
+    } else {
+      await sock.sendMessage(from, { text: "Usage: !antifake on/off" });
     }
   }
-    
+
+  // !antilink command
+  if (isGroup && command === "antilink") {
+    if (!isGroupAdmin && sender !== OWNER_JID) {
+      return sock.sendMessage(from, { text: "⚠️ Admins only!" });
+    }
+    const option = args[0];
+    if (option === "on") {
+      antilinkSettings[from] = true;
+      await sock.sendMessage(from, { text: "✅ Anti-Link enabled." });
+    } else if (option === "off") {
+      delete antilinkSettings[from];
+      await sock.sendMessage(from, { text: "❌ Anti-Link disabled." });
+    } else {
+      await sock.sendMessage(from, { text: "Usage: !antilink on/off" });
+    }
+  }
+
+  // CUSTOM COMMAND HANDLER
+  for (const [name, cmd] of commands) {
+    if (command === name) {
+      try {
+        await cmd.execute(sock, msg, args);
+      } catch (err) {
+        console.error(`Error executing ${name}:`, err);
+      }
+      break;
+    }
+  }
+});
+
+// ANTI-FAKE JOINING USERS
 sock.ev.on("group-participants.update", async (update) => {
   try {
     if (!antiFakeGroups[update.id]) return;
-
     for (let user of update.participants) {
-      if (user.startsWith("255")) continue;
-      const metadata = await sock.groupMetadata(update.id);
-      const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-      const botAdmin = metadata.participants.find(p => p.id === botNumber)?.admin;
-
-      if (botAdmin) {
-        await sock.sendMessage(update.id, {
-          text: `❌ *@${user.split("@")[0]}* removed (not +255 number)`,
-          mentions: [user]
-        });
-        await sock.groupParticipantsUpdate(update.id, [user], "remove");
+      if (!user.startsWith("255")) {
+        const metadata = await sock.groupMetadata(update.id);
+        const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+        const botAdmin = metadata.participants.find(p => p.id === botJid)?.admin;
+        if (botAdmin) {
+          await sock.sendMessage(update.id, {
+            text: `❌ *@${user.split("@")[0]}* removed (not +255 number)`,
+            mentions: [user]
+          });
+          await sock.groupParticipantsUpdate(update.id, [user], "remove");
+        }
       }
     }
   } catch (err) {
@@ -289,20 +307,7 @@ sock.ev.on("group-participants.update", async (update) => {
   }
 });
 
-// Enable Anti-Fake Command
-if (isGroup && body.startsWith(PREFIX + "antifake")) {
-  if (!isGroupAdmin && sender !== OWNER_JID) return sock.sendMessage(from, { text: "⚠️ Admins only!" });
-  const arg = body.split(" ")[1];
-  if (arg === "on") {
-    antiFakeGroups[from] = true;
-    await sock.sendMessage(from, { text: "✅ Anti-Fake enabled" });
-  } else if (arg === "off") {
-    delete antiFakeGroups[from];
-    await sock.sendMessage(from, { text: "❌ Anti-Fake disabled" });
-  } else {
-    await sock.sendMessage(from, { text: "Usage: antifake on/off" });
-  }
-}
+// ANTI DELETE MESSAGE
 sock.ev.on("messages.delete", async (del) => {
   try {
     const msg = del.messages[0];
@@ -317,53 +322,33 @@ sock.ev.on("messages.delete", async (del) => {
     console.error("AntiDelete Error:", e);
   }
 });
-// In-memory settings: group JID -> boolean (true=antilink on)
-const antilinkSettings = {};
 
-// 
-
-// Auto Open ViewOnce in groups where bot is admin
-if (autoViewOnce && msg.type === "notify") {
-  for (const msg of msg.messages) {
+// AUTO OPEN VIEW ONCE
+sock.ev.on("messages.upsert", async ({ messages }) => {
+  for (const msg of messages) {
     if (!msg.message || !msg.key || msg.key.fromMe) continue;
-
     const from = msg.key.remoteJid;
     const isGroup = from.endsWith("@g.us");
 
-    if (isGroup && msg.message?.viewOnceMessageV2) {
+    if (isGroup && msg.message?.viewOnceMessageV2 && process.env.AUTO_VIEW_ONCE === "on") {
       try {
         const metadata = await sock.groupMetadata(from);
-        const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-        const botData = metadata.participants.find(p => p.id === botNumber);
-        const isBotAdmin = botData?.admin !== null && botData?.admin !== undefined;
+        const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+        const isBotAdmin = metadata.participants.find(p => p.id === botJid)?.admin;
+        if (!isBotAdmin) return;
 
-        if (!isBotAdmin) continue; // Skip if bot is not admin
-
-        const message = msg.message.viewOnceMessageV2.message;
-
-        // Forward the message content back to the group
-        await sock.sendMessage(from, { forward: msg, text: "👀 ViewOnce message opened!" });
-
+        const viewOnceMsg = msg.message.viewOnceMessageV2.message;
+        await sock.sendMessage(from, {
+          forward: msg,
+          text: "👀 ViewOnce message opened!"
+        });
       } catch (err) {
         console.error("Auto ViewOnce Error:", err);
       }
     }
   }
-}
+});
 
-   // Command execution
-    for (const [name, command] of commands) {
-      if (body.toLowerCase().startsWith(PREFIX + name)) {
-        try {
-          const args = body.trim().split(/\s+/).slice(1);
-          await command.execute(sock, msg, args);
-        } catch (err) {
-          console.error(`Error executing command ${name}:`, err);
-        }
-        break;
-      }
-    }
-  }); // end of sock.ev.on("messages.upsert")
 } // end of startBot()
 
 startBot();
