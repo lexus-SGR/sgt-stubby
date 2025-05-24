@@ -80,7 +80,20 @@ async function startBot() {
   });
 
   const warnedUsers = {};
+  
+  const commands = new Map();
+  const commandsPath = path.join(__dirname, "commands");
+  if (fs.existsSync(commandsPath)) {
+    for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"))) {
+      const cmd = require(path.join(commandsPath, file));
+      if (cmd.name) commands.set(cmd.name.toLowerCase(), cmd);
+    }
+  } else {
+    fs.mkdirSync(commandsPath);
+    console.log("Created commands folder.");
+  }
 
+  
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message || msg.key.fromMe) return;
@@ -120,25 +133,9 @@ async function startBot() {
         console.error("Antilink error:", e);
       }
     }
-// Command Handler
-if (text.startsWith(PREFIX)) {
-  const args = text.slice(PREFIX.length).trim().split(/ +/);
-  const commandName = args.shift().toLowerCase();
 
-  try {
-    const commandPath = `./commands/${commandName}.js`;
-    if (fs.existsSync(commandPath)) {
-      const command = require(commandPath);
-      if (typeof command.execute === "function") {
-        await command.execute(sock, msg, args, text, PREFIX);
-      } else {
-        console.warn(`Command '${commandName}' does not export an 'execute' function.`);
-      }
-    }
-  } catch (err) {
-    console.error("Command error:", err.message);
-  }
-}
+
+    
   });
 }
 
