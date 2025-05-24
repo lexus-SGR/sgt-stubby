@@ -120,22 +120,25 @@ async function startBot() {
         console.error("Antilink error:", e);
       }
     }
+// Command Handler
+if (text.startsWith(PREFIX)) {
+  const args = text.slice(PREFIX.length).trim().split(/ +/);
+  const commandName = args.shift().toLowerCase();
 
-    // Command Handler
-    if (text.startsWith(PREFIX)) {
-      const args = text.slice(PREFIX.length).trim().split(/ +/);
-      const commandName = args.shift().toLowerCase();
-
-      try {
-        const commandPath = `./commands/${commandName}.js`;
-        if (fs.existsSync(commandPath)) {
-          const command = require(commandPath);
-          command(sock, msg, args, text, PREFIX);
-        }
-      } catch (err) {
-        console.error("Command error:", err.message);
+  try {
+    const commandPath = `./commands/${commandName}.js`;
+    if (fs.existsSync(commandPath)) {
+      const command = require(commandPath);
+      if (typeof command.execute === "function") {
+        await command.execute(sock, msg, args, text, PREFIX);
+      } else {
+        console.warn(`Command '${commandName}' does not export an 'execute' function.`);
       }
     }
+  } catch (err) {
+    console.error("Command error:", err.message);
+  }
+}
   });
 }
 
