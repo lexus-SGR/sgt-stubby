@@ -1,17 +1,22 @@
-import express from "express";
-import { default as makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, makeCacheableSignalKeyStore } from '@whiskeysockets/baileys';
-import P from 'pino';
-import qrcode from 'qrcode-terminal';
-import fs from 'fs';
-import dotenv from 'dotenv';
-dotenv.config();
+const express = require("express");
+const makeWASocket = require("@whiskeysockets/baileys").default;
+const {
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore
+} = require("@whiskeysockets/baileys");
+const P = require("pino");
+const qrcode = require("qrcode-terminal");
+const fs = require("fs");
+require("dotenv").config();
+require('events').EventEmitter.defaultMaxListeners = 100;
 
 const app = express();
 app.get("/", (req, res) => res.send("Fatuma WhatsApp Bot is running!"));
 app.listen(process.env.PORT || 3000, () => {
   console.log("Server running on port " + (process.env.PORT || 3000));
 });
-require('events').EventEmitter.defaultMaxListeners = 100;
 
 // Settings
 const PREFIX = process.env.PREFIX || "!";
@@ -124,8 +129,8 @@ async function startBot() {
       try {
         const commandPath = `./commands/${commandName}.js`;
         if (fs.existsSync(commandPath)) {
-          const command = await import(commandPath);
-          command.default(sock, msg, args, text, PREFIX);
+          const command = require(commandPath);
+          command(sock, msg, args, text, PREFIX);
         }
       } catch (err) {
         console.error("Command error:", err.message);
