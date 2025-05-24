@@ -93,6 +93,17 @@ async function startBot() {
     console.log("Created commands folder.");
   }
 
+  // Listen for incoming messages
+  sock.ev.on("messages.upsert", async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message) return;
+
+    const from = msg.key.remoteJid;
+    const isGroup = from.endsWith("@g.us");
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const body = msg.message?.conversation ||
+                msg.message?.extendedTextMessage?.text ||
+                msg.message?.imageMessage?.caption || "";
   
   
     // Auto Typing/Recording
