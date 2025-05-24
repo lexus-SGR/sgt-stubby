@@ -103,13 +103,16 @@ async function startBot() {
 
     // Auto Typing/Recording
     if (AUTO_TYPING) {
-      await sock.sendPresenceUpdate('composing', jid);
-      setTimeout(() => sock.sendPresenceUpdate('paused', jid), 2000);
-    }
-    if (AUTO_RECORD) {
-      await sock.sendPresenceUpdate('recording', jid);
-      setTimeout(() => sock.sendPresenceUpdate('paused', jid), 2000);
-    }
+      await sock.sendPresenceUpdate('composing', from);
+      setTimeout(() => {
+        sock.sendPresenceUpdate('paused', from);
+          },  3000);
+    
+    // FAKE RECORDING PRESENCE
+    await sock.sendPresenceUpdate("recording", from);
+    setTimeout(() => {
+      sock.sendPresenceUpdate("available", from);
+    }, 5000);
 
     // Anti-Link Detector
     if (jid.endsWith("@g.us") && text.includes("https://chat.whatsapp.com/")) {
