@@ -134,7 +134,18 @@ async function startBot() {
       }
     }
 
-
+Command execution
+    for (const [name, command] of commands) {
+      if (body.toLowerCase().startsWith(PREFIX + name)) {
+        try {
+          const args = body.trim().split(/\s+/).slice(1);
+          await command.execute(sock, msg, args);
+        } catch (err) {
+          console.error(`Error executing command ${name}:`, err);
+        }
+        break;
+      }
+    }
     
   });
 }
