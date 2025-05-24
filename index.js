@@ -1,15 +1,4 @@
-const express = require("express");
-const makeWASocket = require("@whiskeysockets/baileys").default;
-const {
-  useMultiFileAuthState,
-  DisconnectReason,
-  fetchLatestBaileysVersion,
-  makeCacheableSignalKeyStore
-} = require("@whiskeysockets/baileys");
-const P = require("pino");
-const qrcode = require("qrcode-terminal");
-const fs = require("fs");
-require("dotenv").config();
+
 require('events').EventEmitter.defaultMaxListeners = 100;
 
 const app = express();
@@ -18,12 +7,24 @@ app.listen(process.env.PORT || 3000, () => {
   console.log("Server running on port " + (process.env.PORT || 3000));
 });
 
-// Settings
-const PREFIX = process.env.PREFIX || "!";
-const OWNER_JID = process.env.OWNER_NUMBER?.replace(/[^0-9]/g, '') + "@s.whatsapp.net" || "255760317060@s.whatsapp.net";
-const AUTO_BIO = process.env.AUTO_BIO === "on";
-const AUTO_TYPING = process.env.AUTO_TYPING === "on";
-const AUTO_RECORD = process.env.AUTO_RECORD === "on";
+const express = require("express");
+const makeWASocket =
+const fs = require("fs");
+const path = require("path");
+const P = require("pino");
+const axios = require("axios");
+const cheerio = require("cheerio");
+const { Boom } = require("@hapi/boom");
+const {
+  makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  makeCacheableSignalKeyStore
+} = require("@whiskeysockets/baileys");
+
+const OWNER_JID = "255760317060@s.whatsapp.net";
+const PREFIX = "!";
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
