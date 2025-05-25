@@ -103,8 +103,7 @@ if (AUTO_BIO) {
 
   const warnedUsers = true;
 
-  const fs = require('fs');
-const path = require('path');
+  
 const commands = new Map();
 
 const commandsPath = path.join(__dirname, "commands");
