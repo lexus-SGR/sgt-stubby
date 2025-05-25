@@ -124,7 +124,8 @@ Listen for incoming messages
     const sender = msg.key.participant || msg.key.remoteJid;
     const body = msg.message?.conversation ||
                 msg.message?.extendedTextMessage?.text ||
-                msg.message?.imageMessage?.caption || "";
+                msg.message?.imageMessage?.caption ||
+                "";
 
     // FAKE RECORDING PRESENCE
     await sock.sendPresenceUpdate("recording", from);
