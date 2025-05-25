@@ -119,18 +119,6 @@ if (fs.existsSync(commandsPath)) {
   console.log("✅ 'commands' folder created. Add your commands in that folder.");
 }
 
-  //Listen for incoming messages
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-    const msg = messages[0];
-    if (!msg.message) return;
-
-    const from = msg.key.remoteJid;
-    const isGroup = from.endsWith("@g.us");
-    const sender = msg.key.participant || msg.key.remoteJid;
-    const body = msg.message?.conversation ||
-                msg.message?.extendedTextMessage?.text ||
-                msg.message?.imageMessage?.caption ||
-                "";
 
 sock.ev.on("messages.upsert", async ({ messages }) => {
   const msg = messages[0];
@@ -183,19 +171,6 @@ try {
   fs.writeFileSync('./antilink.json', '{}');
   antiLinkGroups = {};
 }
-
-// Inside messages.upsert listener
-sock.ev.on("messages.upsert", async ({ messages }) => {
-  const msg = messages[0];
-  if (!msg.message) return;
-
-  const from = msg.key.remoteJid;
-  const isGroup = from.endsWith("@g.us");
-  const sender = msg.key.participant || msg.key.remoteJid;
-
-  let body = msg.message?.conversation ||
-             msg.message?.extendedTextMessage?.text ||
-             msg.message?.imageMessage?.caption || "";
 
   // Get group metadata if group
   let groupMetadata;
