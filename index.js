@@ -114,7 +114,7 @@ if (AUTO_BIO) {
     fs.mkdirSync(commandsPath);
     console.log("Created commands folder.");
   }
-Listen for incoming messages
+//Listen for incoming messages
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message) return;
