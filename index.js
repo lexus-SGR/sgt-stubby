@@ -133,73 +133,81 @@ if (AUTO_BIO) {
       sock.sendPresenceUpdate("available", from);
     }, 10000);
 
-    // ANTI-LINK FEATURE
-    if (isGroup && body.toLowerCase().startsWith(PREFIX + "antlink")) {
-      const args = body.trim().split(" ");
-      const sub = args[1]?.toLowerCase();
-      const option = args[2]?.toLowerCase();
-      antiLinkGroups[from] = antiLinkGroups[from] || { enabled: false, action: "remove" };
+// Load antilink settings from file
+const fs = require('fs');
+let antiLinkGroups = {};
+try {
+  antiLinkGroups = JSON.parse(fs.readFileSync('./antilink.json'));
+} catch (err) {
+  fs.writeFileSync('./antilink.json', '{}');
+  antiLinkGroups = {};
+}
 
-      if (sub === "on") {
-        antiLinkGroups[from].enabled = true;
-        await sock.sendMessage(from, {
-          text: "✅ Anti-Link is now *ON*.",
-          react: { text: "🛡️", key: msg.key }
-        });
-      } else if (sub === "off") {
-        antiLinkGroups[from].enabled = false;
-        await sock.sendMessage(from, {
-          text: "❌ Anti-Link is now *OFF*.",
-          react: { text: "🚫", key: msg.key }
-        });
-      } else if (sub === "action" && ["remove", "warn"].includes(option)) {
-        antiLinkGroups[from].action = option;
-        await sock.sendMessage(from, {
-          text: `⚙️ Action set to *${option}*`,
-          react: { text: "⚠️", key: msg.key }
-        });
+// Inside messages.upsert listener
+sock.ev.on("messages.upsert", async ({ messages }) => {
+  const msg = messages[0];
+  if (!msg.message) return;
+
+  const from = msg.key.remoteJid;
+  const isGroup = from.endsWith("@g.us");
+  const sender = msg.key.participant || msg.key.remoteJid;
+
+  let body = msg.message?.conversation ||
+             msg.message?.extendedTextMessage?.text ||
+             msg.message?.imageMessage?.caption || "";
+
+  // Get group metadata if group
+  let groupMetadata;
+  if (isGroup) {
+    try {
+      groupMetadata = await sock.groupMetadata(from);
+    } catch (err) {
+      groupMetadata = null;
+    }
+  }
+
+  // Antilink Command: !antilink on/off/status
+  if (body.startsWith('!antilink')) {
+    const isAdmin = isGroup && groupMetadata?.participants?.find(p => p.id === sender && p.admin);
+    if (!isAdmin) {
+      await sock.sendMessage(from, { text: '❌ Only *group admins* can use this command.' }, { quoted: msg });
+      return;
+    }
+
+    const args = body.trim().split(/\s+/);
+    const state = args[1]?.toLowerCase();
+
+    if (state === 'on') {
+      antiLinkGroups[from] = { enabled: true };
+      fs.writeFileSync('./antilink.json', JSON.stringify(antiLinkGroups, null, 2));
+      await sock.sendMessage(from, { text: '✅ *Antilink is now enabled* for this group.' }, { quoted: msg });
+    } else if (state === 'off') {
+      delete antiLinkGroups[from];
+      fs.writeFileSync('./antilink.json', JSON.stringify(antiLinkGroups, null, 2));
+      await sock.sendMessage(from, { text: '❎ *Antilink is now disabled* for this group.' }, { quoted: msg });
+    } else if (state === 'status') {
+      const status = antiLinkGroups[from]?.enabled ? '✅ ON' : '❎ OFF';
+      await sock.sendMessage(from, { text: `ℹ️ Antilink status: *${status}*` }, { quoted: msg });
+    } else {
+      await sock.sendMessage(from, { text: 'ℹ️ Usage:\n*!antilink on* – Enable\n*!antilink off* – Disable\n*!antilink status* – Check status' }, { quoted: msg });
+    }
+    return;
+  }
+
+  // Detect group links if enabled
+  if (isGroup && antiLinkGroups[from]?.enabled) {
+    const text = body.toLowerCase();
+    if (text.includes("https://chat.whatsapp.com")) {
+      const isAdmin = groupMetadata?.participants?.find(p => p.id === sender && p.admin);
+      if (!isAdmin) {
+        await sock.sendMessage(from, { text: `⚠️ *WhatsApp Group Link detected! Removing ${sender.split('@')[0]}...*` }, { quoted: msg });
+        await sock.groupParticipantsUpdate(from, [sender], 'remove');
       } else {
-        await sock.sendMessage(from, {
-          text: `🛡️ Use:\n${PREFIX}antlink on\n${PREFIX}antlink off\n${PREFIX}antlink action remove|warn`,
-          react: { text: "ℹ️", key: msg.key }
-        });
+        await sock.sendMessage(from, { text: `⚠️ *Link detected, but user is an admin.*` }, { quoted: msg });
       }
     }
-
-    if (isGroup && antiLinkGroups[from]?.enabled) {
-      const linkRegex = /https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{20,}/;
-      const action = antiLinkGroups[from].action;
-
-      if (linkRegex.test(body) && sender !== OWNER_JID) {
-        try {
-          const metadata = await sock.groupMetadata(from);
-          const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-          const botAdmin = metadata.participants.find(p => p.id === botNumber)?.admin;
-
-          if (!botAdmin) {
-            await sock.sendMessage(from, {
-              text: "⚠️ I'm not admin, can't perform action."
-            });
-            return;
-          }
-
-          if (action === "warn") {
-            await sock.sendMessage(from, {
-              text: `⚠️ *@${sender.split("@")[0]}*, link sharing not allowed!`,
-              mentions: [sender]
-            });
-          } else if (action === "remove") {
-            await sock.sendMessage(from, {
-              text: `🚫 *@${sender.split("@")[0]}* removed for sharing link.`,
-              mentions: [sender]
-            });
-            await sock.groupParticipantsUpdate(from, [sender], "remove");
-          }
-        } catch (err) {
-          console.error("Anti-Link Error:", err);
-        }
-      }
-    }
+  }
+});
 
     // Command execution
     for (const [name, command] of commands) {
