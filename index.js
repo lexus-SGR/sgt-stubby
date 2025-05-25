@@ -32,8 +32,7 @@ const AUTO_VIEW_ONCE = process.env.AUTO_VIEW_ONCE === "on" ? true : false;
 const AUTO_VIEW_STATUS = process.env.AUTO_VIEW_STATUS === "on" ? true : false;
 const ANTILINK_ENABLED = process.env.ANTILINK === "on";
 const ANTILINK_ACTION = process.env.ANTILINK_ACTION || "remove";
-
-const { antilinkCommands, antiLinkCheck } = require("./antilink"); // Ensure path is correct
+const handleAntiLink = require('./antilink');
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
