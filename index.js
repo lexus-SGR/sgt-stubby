@@ -177,7 +177,7 @@ ${prefix}antilink action mute - Auto-mute for 5 mins 🔇`
 
     switch (action) {
       case "on":
-        antilinkSettings[from] = { enabled: true, actionRemove: false, actionKick: false, actionMute: false };
+        antilinkSettings[from] = { enabled: true, actionRemove: true, actionKick: true, actionMute: false };
         await sock.sendMessage(from, { text: "✅ *Anti-link protection is now ENABLED!* 🚫" });
         break;
 
