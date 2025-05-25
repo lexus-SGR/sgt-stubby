@@ -114,222 +114,93 @@ if (AUTO_BIO) {
     fs.mkdirSync(commandsPath);
     console.log("Created commands folder.");
   }
-
-sock.ev.on("messages.upsert", async ({ messages }) => {
-  const msg = messages[0];
-  if (!msg.message) return;
-
-  const from = msg.key.remoteJid;
-  const isGroup = from.endsWith("@g.us");
-  const sender = msg.key.participant || msg.key.remoteJid;
-
-  const body = msg.message?.conversation ||
-              msg.message?.extendedTextMessage?.text ||
-              msg.message?.imageMessage?.caption || "";
-const prefix = "!";
-
-const antilinkSettings = true;
-
-// Helper function pata admins wa group
-async function getGroupAdmins(sock, groupId) {
-  try {
-    const metadata = await sock.groupMetadata(groupId);
-    return metadata.participants
-      .filter(p => p.admin !== null)
-      .map(p => p.id.split("@")[0]);
-  } catch (err) {
-    console.error("Error getting group admins:", err);
-    return [];
-  }
-}
-    message.message?.extendedTextMessage?.text ||
-    message.message?.imageMessage?.caption ||
-    message.message?.videoMessage?.caption ||
-    "";
-
-  const linkRegex = /https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+/gi;
-
-  if (linkRegex.test(textMsg) && !isAdmin) {
-    try {
-      await sock.sendMessage(from, {
-        text: `⚠️ @${senderId}, posting group links is *NOT allowed*!`,
-        mentions: [sender],
-      });
-
-      if (antilinkSettings[from].actionRemove) {
-        await sock.sendMessage(from, { delete: message.key });
-      }
-      if (antilinkSettings[from].actionKick) {
-        await sock.groupParticipantsUpdate(from, [sender], "remove");
-      }
-      if (antilinkSettings[from].actionMute) {
-        // NOTE: Baileys API doesn't directly support mute, so you may need to implement mute differently or skip
-        // This is a placeholder if your bot supports muting via groupParticipantsUpdate or other method
-        // Remove or comment if unsupported
-        // await sock.groupParticipantsUpdate(from, [{ participant: sender, muting: { mute: true, duration: 5 * 60 * 1000 } }]);
-        await sock.sendMessage(from, {
-          text: `🔇 @${senderId} would be muted for 5 minutes (functionality depends on your bot's capabilities).`,
-          mentions: [sender],
-        });
-      }
-    } catch (err) {
-      console.error("Anti-link punishment error:", err);
-    }
-  }
-}
-
-// Example message listener with command handling (inside your sock event)
-sock.ev.on("messages.upsert", async ({ messages }) => {
-  for (const msg of messages) {
-    if (!msg.message || msg.key.fromMe) continue;
+Listen for incoming messages
+  sock.ev.on("messages.upsert", async ({ messages }) => {
+    const msg = messages[0];
+    if (!msg.message) return;
 
     const from = msg.key.remoteJid;
     const isGroup = from.endsWith("@g.us");
     const sender = msg.key.participant || msg.key.remoteJid;
-    const senderId = sender.split(":")[0];
-    
-const antilink = true;
+    const body = msg.message?.conversation ||
+                msg.message?.extendedTextMessage?.text ||
+                msg.message?.imageMessage?.caption || "";
 
-const isGroup = m.key.remoteJid.endsWith('@g.us');
-const sender = m.key.participant || m.key.remoteJid;
-const msgText = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
+    // FAKE RECORDING PRESENCE
+    await sock.sendPresenceUpdate("recording", from);
+    setTimeout(() => {
+      sock.sendPresenceUpdate("available", from);
+    }, 10000);
 
-if (antilink && isGroup && msgText.match(/(https?:\/\/|wa\.me\/|chat\.whatsapp\.com\/|t\.me\/|discord\.gg\/|invite)/gi)) {
-    let senderNum = sender.split('@')[0];
+    // ANTI-LINK FEATURE
+    if (isGroup && body.toLowerCase().startsWith(PREFIX + "antlink")) {
+      const args = body.trim().split(" ");
+      const sub = args[1]?.toLowerCase();
+      const option = args[2]?.toLowerCase();
+      antiLinkGroups[from] = antiLinkGroups[from] || { enabled: false, action: "remove" };
 
-    // Reply na kejeli
-    await sock.sendMessage(from, { text: `We ${senderNum} umetuma link? Nenda kamtumia baba yako hiyo link!` }, { quoted: m });
-
-    // Futa ujumbe
-    try {
+      if (sub === "on") {
+        antiLinkGroups[from].enabled = true;
         await sock.sendMessage(from, {
-            delete: {
-                remoteJid: from,
-                fromMe: false,
-                id: m.key.id,
-                participant: sender
-            }
+          text: "✅ Anti-Link is now *ON*.",
+          react: { text: "🛡️", key: msg.key }
         });
-    } catch (e) {
-        console.log("Could not delete message:", e);
-    }
-
-    // Kick user (if bot is admin na yeye siyo admin)
-    try {
-        const groupMetadata = await sock.groupMetadata(from);
-        const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
-        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin !== undefined;
-        const senderIsAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin !== undefined;
-
-        if (botIsAdmin && !senderIsAdmin) {
-            await sock.groupParticipantsUpdate(from, [sender], "remove");
-        }
-    } catch (e) {
-        console.log("Kick error:", e);
-    }
-}
-
-  
-//==== AUTO OPEN VIEW ONCE MESSAGE ====
-  if (AUTO_VIEW_ONCE) {
-    try {
-      // Check if message has viewOnceMessage
-      const viewOnceMsg = msg.message?.viewOnceMessage;
-      if (viewOnceMsg) {
-        // For groups, check if sender is admin
-        if (!isGroup || (await isUserAdmin(sock, from, sender))) {
-          // Resend the message content without viewOnce restriction
-          const originalMsg = viewOnceMsg.message;
-          await sock.sendMessage(from, originalMsg, { quoted: msg });
-          console.log(`✅ Auto opened viewOnce message from ${sender} in ${from}`);
-        }
+      } else if (sub === "off") {
+        antiLinkGroups[from].enabled = false;
+        await sock.sendMessage(from, {
+          text: "❌ Anti-Link is now *OFF*.",
+          react: { text: "🚫", key: msg.key }
+        });
+      } else if (sub === "action" && ["remove", "warn"].includes(option)) {
+        antiLinkGroups[from].action = option;
+        await sock.sendMessage(from, {
+          text: `⚙️ Action set to *${option}*`,
+          react: { text: "⚠️", key: msg.key }
+        });
+      } else {
+        await sock.sendMessage(from, {
+          text: `🛡️ Use:\n${PREFIX}antlink on\n${PREFIX}antlink off\n${PREFIX}antlink action remove|warn`,
+          react: { text: "ℹ️", key: msg.key }
+        });
       }
-    } catch (err) {
-      console.error("❌ Error auto-opening viewOnce message:", err);
-    }
-  }
-
-  // ==== AUTO VIEW STATUS AND REACT ====
-  if (AUTO_VIEW_STATUS) {
-    try {
-      // When user sends a status (story), it arrives as a message with protocolMessage of type 'status'
-      const protocolMsg = msg.message?.protocolMessage;
-      if (protocolMsg && protocolMsg.type === 5) { // 5 means status update
-        const statusOwner = protocolMsg.key.participant || protocolMsg.key.remoteJid;
-
-        // Mark status as viewed
-        await sock.sendReadReceipt(from, statusOwner, [protocolMsg.key.id]);
-
-        // React with emojis 💝....🚀....😁...👌
-        await sock.sendMessage(from, {
-          react: {
-            text: "💝",
-            key: protocolMsg.key,
-          }
-        });
-
-        await sock.sendMessage(from, {
-          react: {
-            text: "🚀",
-            key: protocolMsg.key,
-          }
-        });
-
-        await sock.sendMessage(from, {
-          react: {
-            text: "😁",
-            key: protocolMsg.key,
-          }
-        });
-
-        await sock.sendMessage(from, {
-          react: {
-            text: "👌",
-            key: protocolMsg.key,
-          }
-        });
-
-        console.log(`✅ Auto viewed and reacted to status from ${statusOwner}`);
-      }
-    } catch (err) {
-      console.error("❌ Error auto-viewing/reacting status:", err);
-    }
-  }
-
-    if (AUTO_TYPING) {
-      await sock.sendPresenceUpdate('composing', from);
-      setTimeout(() => {
-        sock.sendPresenceUpdate('paused', from);
-      }, 3000);
-      await sock.sendPresenceUpdate("recording", from);
-      setTimeout(() => {
-        sock.sendPresenceUpdate("available", from);
-      }, 5000);
     }
 
-    if (from.endsWith("@g.us") && body.includes("https://chat.whatsapp.com/")) {
-      try {
-        const groupMetadata = await sock.groupMetadata(from);
-        const isAdmin = groupMetadata.participants.find(p => p.id === sender && (p.admin === "admin" || p.admin === "superadmin"));
-        const botAdmin = groupMetadata.participants.find(p => p.id === sock.user.id && (p.admin === "admin" || p.admin === "superadmin"));
+    if (isGroup && antiLinkGroups[from]?.enabled) {
+      const linkRegex = /https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]{20,}/;
+      const action = antiLinkGroups[from].action;
 
-        if (botAdmin) {
-          if (isAdmin) {
-            await sock.sendMessage(from, { text: `⚠️ Admin @${sender.split("@")[0]} posted a group link. Skipping remove.`, mentions: [sender] });
-          } else {
-            await sock.sendMessage(from, { text: `🚫 Link detected! Removing @${sender.split("@")[0]}...`, mentions: [sender] });
+      if (linkRegex.test(body) && sender !== OWNER_JID) {
+        try {
+          const metadata = await sock.groupMetadata(from);
+          const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+          const botAdmin = metadata.participants.find(p => p.id === botNumber)?.admin;
+
+          if (!botAdmin) {
+            await sock.sendMessage(from, {
+              text: "⚠️ I'm not admin, can't perform action."
+            });
+            return;
+          }
+
+          if (action === "warn") {
+            await sock.sendMessage(from, {
+              text: `⚠️ *@${sender.split("@")[0]}*, link sharing not allowed!`,
+              mentions: [sender]
+            });
+          } else if (action === "remove") {
+            await sock.sendMessage(from, {
+              text: `🚫 *@${sender.split("@")[0]}* removed for sharing link.`,
+              mentions: [sender]
+            });
             await sock.groupParticipantsUpdate(from, [sender], "remove");
           }
-        } else {
-          warnedUsers[sender] = (warnedUsers[sender] || 0) + 1;
-          await sock.sendMessage(from, { text: `⚠️ @${sender.split("@")[0]}, stop posting links. Warn: ${warnedUsers[sender]}`, mentions: [sender] });
+        } catch (err) {
+          console.error("Anti-Link Error:", err);
         }
-      } catch (e) {
-        console.error("Antilink error:", e);
       }
     }
 
-    // Command Execution
+    // Command execution
     for (const [name, command] of commands) {
       if (body.toLowerCase().startsWith(PREFIX + name)) {
         try {
@@ -341,7 +212,7 @@ if (antilink && isGroup && msgText.match(/(https?:\/\/|wa\.me\/|chat\.whatsapp\.
         break;
       }
     }
-  });
-}
+  }); // end of sock.ev.on("messages.upsert")
+} // end of startBot()
 
 startBot();
