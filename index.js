@@ -142,112 +142,6 @@ async function getGroupAdmins(sock, groupId) {
     return [];
   }
 }
-
-// Anti-link commands object
-const antilinkCommands = {
-  name: "antilink",
-  description: "Manage Anti-link features to keep your group safe",
-  emoji: "🚫",
-  async execute(sock, msg, args, isGroup, groupAdmins, antilinkSettings) {
-    const from = msg.key.remoteJid;
-    const sender = msg.key.participant || msg.key.remoteJid;
-    const senderId = sender.split(":")[0];
-    const isAdmin = groupAdmins.includes(senderId);
-
-    if (!isGroup) {
-      return sock.sendMessage(from, { text: "❌ *Anti-link commands work only in groups.*" });
-    }
-    if (!isAdmin) {
-      return sock.sendMessage(from, { text: "⚠️ *You must be a group admin to use this command.*" });
-    }
-    if (args.length === 0) {
-      return sock.sendMessage(from, {
-        text: `❗*Usage:* 
-${prefix}antilink on - Enable anti-link protection 🚫
-${prefix}antilink off - Disable anti-link protection ❌
-${prefix}antilink list - Show anti-link status 📋
-${prefix}antilink reset - Reset anti-link settings 🔄
-${prefix}antilink action remove - Auto-delete links ⛔
-${prefix}antilink action kick - Auto-kick link posters 🚷
-${prefix}antilink action mute - Auto-mute for 5 mins 🔇`
-      });
-    }
-
-    const action = args[0].toLowerCase();
-
-    switch (action) {
-      case "on":
-        antilinkSettings[from] = { enabled: true, actionRemove: true, actionKick: true, actionMute: false };
-        await sock.sendMessage(from, { text: "✅ *Anti-link protection is now ENABLED!* 🚫" });
-        break;
-
-      case "off":
-        antilinkSettings[from] = { enabled: false, actionRemove: false, actionKick: false, actionMute: false };
-        await sock.sendMessage(from, { text: "❌ *Anti-link protection is now DISABLED!* ❌" });
-        break;
-
-      case "list":
-        const status = antilinkSettings[from]?.enabled ? "ENABLED ✅" : "DISABLED ❌";
-        const removeAction = antilinkSettings[from]?.actionRemove ? "ON ✅" : "OFF ❌";
-        const kickAction = antilinkSettings[from]?.actionKick ? "ON ✅" : "OFF ❌";
-        const muteAction = antilinkSettings[from]?.actionMute ? "ON ✅" : "OFF ❌";
-        await sock.sendMessage(from, {
-          text: `📋 *Anti-link Status:* 
-Protection: *${status}* 
-Remove Links: *${removeAction}* 
-Kick Offenders: *${kickAction}* 
-Mute Offenders: *${muteAction}*`
-        });
-        break;
-
-      case "reset":
-        delete antilinkSettings[from];
-        await sock.sendMessage(from, { text: "♻️ *Anti-link settings have been RESET!* 🔄" });
-        break;
-
-      case "action":
-        if (!antilinkSettings[from]?.enabled) {
-          return sock.sendMessage(from, { text: "⚠️ *Enable anti-link first using:* `antilink on`" });
-        }
-        switch (args[1]?.toLowerCase()) {
-          case "remove":
-            antilinkSettings[from].actionRemove = true;
-            await sock.sendMessage(from, { text: "⛔ *Auto-Remove is ON!* Links will be deleted." });
-            break;
-
-          case "kick":
-            antilinkSettings[from].actionKick = true;
-            await sock.sendMessage(from, { text: "🚷 *Auto-KICK is ON!* Users will be removed." });
-            break;
-
-          case "mute":
-            antilinkSettings[from].actionMute = true;
-            await sock.sendMessage(from, { text: "🔇 *Auto-MUTE is ON!* Offenders will be muted for 5 minutes." });
-            break;
-
-          default:
-            await sock.sendMessage(from, { text: "❓ *Invalid action. Use:* `remove`, `kick`, `mute`" });
-        }
-        break;
-
-      default:
-        await sock.sendMessage(from, { text: "❓ *Invalid option. Use on/off/list/reset/action remove/kick/mute*" });
-    }
-  },
-};
-
-// Anti-link check for incoming messages
-async function antiLinkCheck(sock, message, antilinkSettings, groupAdmins) {
-  const from = message.key.remoteJid;
-  if (!antilinkSettings[from]?.enabled) return;
-
-  const sender = message.key.participant || message.key.remoteJid;
-  const senderId = sender.split(":")[0];
-  const isAdmin = groupAdmins.includes(senderId);
-
-  // Extract text from message
-  const textMsg =
-    message.message?.conversation ||
     message.message?.extendedTextMessage?.text ||
     message.message?.imageMessage?.caption ||
     message.message?.videoMessage?.caption ||
@@ -293,42 +187,47 @@ sock.ev.on("messages.upsert", async ({ messages }) => {
     const isGroup = from.endsWith("@g.us");
     const sender = msg.key.participant || msg.key.remoteJid;
     const senderId = sender.split(":")[0];
+    
+const antilink = true;
 
-    // Get group admins if group
-    let groupAdmins = [];
-    if (isGroup) {
-      groupAdmins = await getGroupAdmins(sock, from);
+const isGroup = m.key.remoteJid.endsWith('@g.us');
+const sender = m.key.participant || m.key.remoteJid;
+const msgText = m.message?.conversation || m.message?.extendedTextMessage?.text || "";
+
+if (antilink && isGroup && msgText.match(/(https?:\/\/|wa\.me\/|chat\.whatsapp\.com\/|t\.me\/|discord\.gg\/|invite)/gi)) {
+    let senderNum = sender.split('@')[0];
+
+    // Reply na kejeli
+    await sock.sendMessage(from, { text: `We ${senderNum} umetuma link? Nenda kamtumia baba yako hiyo link!` }, { quoted: m });
+
+    // Futa ujumbe
+    try {
+        await sock.sendMessage(from, {
+            delete: {
+                remoteJid: from,
+                fromMe: false,
+                id: m.key.id,
+                participant: sender
+            }
+        });
+    } catch (e) {
+        console.log("Could not delete message:", e);
     }
 
-    // Run anti-link check on every message
-    await antiLinkCheck(sock, msg, antilinkSettings, groupAdmins);
+    // Kick user (if bot is admin na yeye siyo admin)
+    try {
+        const groupMetadata = await sock.groupMetadata(from);
+        const botJid = sock.user.id.split(':')[0] + '@s.whatsapp.net';
+        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin !== undefined;
+        const senderIsAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin !== undefined;
 
-    // Extract text command
-    let body = "";
-    if (msg.message.conversation) {
-      body = msg.message.conversation;
-    } else if (msg.message.extendedTextMessage?.text) {
-      body = msg.message.extendedTextMessage.text;
-    } else {
-      body = "";
+        if (botIsAdmin && !senderIsAdmin) {
+            await sock.groupParticipantsUpdate(from, [sender], "remove");
+        }
+    } catch (e) {
+        console.log("Kick error:", e);
     }
-
-    if (!body.startsWith(prefix)) continue;
-
-    const args = body.slice(prefix.length).trim().split(/ +/);
-    const command = args.shift().toLowerCase();
-
-    // Handle antilink command
-    if (command === "antilink") {
-      await antilinkCommands.execute(sock, msg, args, isGroup, groupAdmins, antilinkSettings);
-    }
-
-    // ... hapa weka command handlers zako nyingine
-  }
-});
-
-
-
+}
 
   
 //==== AUTO OPEN VIEW ONCE MESSAGE ====
