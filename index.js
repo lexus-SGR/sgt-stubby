@@ -1,6 +1,7 @@
 require('events').EventEmitter.defaultMaxListeners = 100;
 require("dotenv").config();
 const express = require("express");
+const welcomeGroups = new Set();
 const fs = require("fs");
 const path = require("path");
 const P = require("pino");
@@ -94,6 +95,29 @@ async function startBot() {
     }
   });
 
+sock.ev.on('group-participants.update', async (update) => {
+    const groupId = update.id;
+    if (welcomeGroups.has(groupId)) {
+      for (const participant of update.participants) {
+        if (update.action === 'add') {
+          try {
+            const groupMetadata = await sock.groupMetadata(groupId);
+            const groupName = groupMetadata.subject;
+
+            const welcomeText = `👋 Hello @${participant.split('@')[0]}!\n\nWelcome to *${groupName}*.\nWe're glad to have you here. Please introduce yourself and follow the rules.`;
+
+            await sock.sendMessage(groupId, {
+              text: welcomeText,
+              mentions: [participant]
+            });
+          } catch (e) {
+            console.error("❌ Error sending welcome message:", e.message);
+          }
+        }
+      }
+    }
+  });
+  
   // Load commands
   const commands = new Map();
   const commandsPath = path.join(__dirname, "commands");
@@ -166,7 +190,29 @@ async function startBot() {
       }
       return;
     }
+// Welcome Command
+    if (body === '!welcome') {
+      if (!isGroup) {
+        await sock.sendMessage(from, { text: "❌ This command is for groups only." }, { quoted: msg });
+        return;
+      }
+      if (!isAdmin) {
+        await sock.sendMessage(from, { text: "❌ Only admins can use this command." }, { quoted: msg });
+        return;
+      }
 
+      if (welcomeGroups.has(from)) {
+        welcomeGroups.delete(from);
+        await sock.sendMessage(from, { text: "👋 Welcome messages have been *disabled*." }, { quoted: msg });
+      } else {
+        welcomeGroups.add(from);
+        await sock.sendMessage(from, { text: "✅ Welcome messages have been *enabled*. New members will now get a welcome message." }, { quoted: msg });
+      }
+      return;
+    }
+
+
+    
     // Run command
     if (commandName && command) {
       try {
