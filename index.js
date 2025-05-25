@@ -103,18 +103,23 @@ if (AUTO_BIO) {
 
   const warnedUsers = true;
 
-  const commands = new Map();
-  const commandsPath = path.join(__dirname, "commands");
-  if (fs.existsSync(commandsPath)) {
-    for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"))) {
-      const cmd = require(path.join(commandsPath, file));
-      if (cmd.name) commands.set(cmd.name.toLowerCase(), cmd);
-    }
-  } else {
-    fs.mkdirSync(commandsPath);
-    console.log("Created commands folder.");
+  const fs = require('fs');
+const path = require('path');
+const commands = new Map();
+
+const commandsPath = path.join(__dirname, "commands");
+
+if (fs.existsSync(commandsPath)) {
+  for (const file of fs.readdirSync(commandsPath).filter(f => f.endsWith(".js"))) {
+    const cmd = require(path.join(commandsPath, file));
+    if (cmd.name) commands.set(cmd.name.toLowerCase(), cmd);
   }
-//Listen for incoming messages
+} else {
+  fs.mkdirSync(commandsPath);
+  console.log("✅ 'commands' folder created. Add your commands in that folder.");
+}
+
+  //Listen for incoming messages
   sock.ev.on("messages.upsert", async ({ messages }) => {
     const msg = messages[0];
     if (!msg.message) return;
@@ -127,6 +132,42 @@ if (AUTO_BIO) {
                 msg.message?.imageMessage?.caption ||
                 "";
 
+sock.ev.on("messages.upsert", async ({ messages }) => {
+  const msg = messages[0];
+  if (!msg.message) return;
+
+  const from = msg.key.remoteJid;
+  const isGroup = from.endsWith("@g.us");
+  const sender = msg.key.participant || msg.key.remoteJid;
+  const body = msg.message?.conversation ||
+               msg.message?.extendedTextMessage?.text ||
+               msg.message?.imageMessage?.caption || "";
+
+  const prefix = '!';
+  if (body.startsWith(prefix)) {
+    const commandName = body.slice(prefix.length).trim().split(/ +/).shift().toLowerCase();
+    const args = body.trim().split(/ +/).slice(1);
+    const command = commands.get(commandName);
+
+    // Optional: pata group metadata na admin check
+    let groupMetadata, participants, isAdmin;
+    if (isGroup) {
+      groupMetadata = await sock.groupMetadata(from);
+      participants = groupMetadata.participants;
+      const participantIds = participants.map(p => p.id);
+      isAdmin = participantIds.includes(sender) && participants.find(p => p.id === sender).admin != null;
+    }
+
+    if (command) {
+      try {
+        await command.execute(sock, msg, args, from, sender, isGroup, groupMetadata, isAdmin);
+      } catch (err) {
+        console.error("❌ Error in command:", err);
+      }
+    }
+  }
+});
+    
     // FAKE RECORDING PRESENCE
     await sock.sendPresenceUpdate("recording", from);
     setTimeout(() => {
