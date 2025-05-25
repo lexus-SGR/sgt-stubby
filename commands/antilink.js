@@ -1,28 +1,44 @@
-module.exports = async function handleAntiLink(sock, msg, ANTILINK_ACTION) {
-  const messageContent = msg.message?.conversation ||
-                         msg.message?.extendedTextMessage?.text ||
-                         msg.message?.imageMessage?.caption || "";
+const fs = require('fs');
+const path = './antilink.json';
 
-  const linkRegex = /(https?:\/\/[^\s]+)/g;
-  if (!linkRegex.test(messageContent)) return;
+if (!fs.existsSync(path)) fs.writeFileSync(path, '{}');
 
-  const sender = msg.key.participant || msg.key.remoteJid;
-  const groupMetadata = await sock.groupMetadata(msg.key.remoteJid);
-  const isAdmin = groupMetadata.participants.some(p => p.id === sender && p.admin);
-  const botId = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-  const isBotAdmin = groupMetadata.participants.some(p => p.id === botId && p.admin);
+let antiLinkGroups = JSON.parse(fs.readFileSync(path));
 
-  if (!isBotAdmin) {
-    await sock.sendMessage(msg.key.remoteJid, { text: "⚠️ I can't take action because I'm not an admin." });
-    return;
-  }
+module.exports = {
+  name: 'antilink',
+  description: 'Enable or disable WhatsApp group link detection.',
+  category: 'group',
+  async execute(sock, msg, args, from, sender, isGroup, groupMetadata, isAdmin) {
+    if (!isGroup) {
+      return await sock.sendMessage(from, { text: '❌ This command can only be used in groups.' }, { quoted: msg });
+    }
 
-  if (isAdmin) return;
+    if (!isAdmin) {
+      return await sock.sendMessage(from, { text: '❌ Only *group admins* can use this command.' }, { quoted: msg });
+    }
 
-  if (ANTILINK_ACTION === "remove") {
-    await sock.sendMessage(msg.key.remoteJid, { text: `🚫 ${sender.split("@")[0]} has been removed for sending a link!` });
-    await sock.groupParticipantsUpdate(msg.key.remoteJid, [sender], "remove");
-  } else if (ANTILINK_ACTION === "warn") {
-    await sock.sendMessage(msg.key.remoteJid, { text: `⚠️ ${sender.split("@")[0]}, please do not send links in this group.` });
+    const subCmd = args[0]?.toLowerCase();
+
+    switch (subCmd) {
+      case 'on':
+        antiLinkGroups[from] = { enabled: true };
+        fs.writeFileSync(path, JSON.stringify(antiLinkGroups, null, 2));
+        return await sock.sendMessage(from, { text: '✅ Antilink has been *enabled* for this group.' }, { quoted: msg });
+
+      case 'off':
+        delete antiLinkGroups[from];
+        fs.writeFileSync(path, JSON.stringify(antiLinkGroups, null, 2));
+        return await sock.sendMessage(from, { text: '❎ Antilink has been *disabled* for this group.' }, { quoted: msg });
+
+      case 'status':
+        const status = antiLinkGroups[from]?.enabled ? '✅ ON' : '❎ OFF';
+        return await sock.sendMessage(from, { text: `ℹ️ Antilink status: *${status}*` }, { quoted: msg });
+
+      default:
+        return await sock.sendMessage(from, {
+          text: 'ℹ️ Usage:\n- *!antilink on* – Enable\n- *!antilink off* – Disable\n- *!antilink status* – Check current status',
+        }, { quoted: msg });
+    }
   }
 };
