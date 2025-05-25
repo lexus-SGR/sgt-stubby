@@ -31,7 +31,7 @@ const AUTO_BIO = true;
 const AUTO_VIEW_ONCE = process.env.AUTO_VIEW_ONCE === "on";
 const ANTILINK_ENABLED = process.env.ANTILINK === "on";
 const AUTO_TYPING = process.env.AUTO_TYPING === "on";
-const RECORD_VOICE_FAKE = process.env.RECORD_VOICE_FAKE === "on";
+const RECORD_VOICE_FAKE = process.env.RECORD_VOICE_FAKE === "off";
 const AUTO_VIEW_STATUS = process.env.AUTO_VIEW_STATUS === "on";
 const AUTO_REACT_EMOJI = process.env.AUTO_REACT_EMOJI || "";
 
