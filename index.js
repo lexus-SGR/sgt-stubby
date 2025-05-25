@@ -1,5 +1,5 @@
 require('events').EventEmitter.defaultMaxListeners = 100;
-
+require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -30,9 +30,11 @@ const AUTO_BIO = true;
 const AUTO_TYPING = true;
 const AUTO_VIEW_ONCE = process.env.AUTO_VIEW_ONCE === "on" ? true : false;
 const AUTO_VIEW_STATUS = process.env.AUTO_VIEW_STATUS === "on" ? true : false;
-//const { antilinkCommands, antiLinkCheck } = require("./antilink"); // Ensure path is correct
+const ANTILINK_ENABLED = process.env.ANTILINK === "on";
+const ANTILINK_ACTION = process.env.ANTILINK_ACTION || "remove";
 
-//const antilinkSettings = {}; // global object to store group antilink settings
+const { antilinkCommands, antiLinkCheck } = require("./antilink"); // Ensure path is correct
+
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState("./auth");
   const { version } = await fetchLatestBaileysVersion();
@@ -100,7 +102,7 @@ if (AUTO_BIO) {
     }
   });
 
-  const warnedUsers = {};
+  const warnedUsers = true;
 
   const commands = new Map();
   const commandsPath = path.join(__dirname, "commands");
@@ -127,7 +129,7 @@ sock.ev.on("messages.upsert", async ({ messages }) => {
               msg.message?.imageMessage?.caption || "";
 const prefix = "!";
 
-const antilinkSettings = {};
+const antilinkSettings = true;
 
 // Helper function pata admins wa group
 async function getGroupAdmins(sock, groupId) {
