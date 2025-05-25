@@ -24,7 +24,7 @@ app.listen(process.env.PORT || 3000, () =>
 );
 
 // Config
-const OWNER_JID = "255760317060@s.whatsapp.net";
+const OWNER_JID = process.env.OWNER_NUMBER + "@s.whatsapp.net";
 const PREFIX = "!";
 const AUTO_BIO = true;
 const AUTO_VIEW_ONCE = process.env.AUTO_VIEW_ONCE === "on";
@@ -114,119 +114,100 @@ async function startBot() {
     fs.mkdirSync(commandsPath);
     console.log("✅ 'commands' folder created.");
   }
+sock.ev.on("messages.upsert", async ({ messages }) => {
+  try {
+    const msg = messages[0];
+    if (!msg.message) return;
 
-  //handling message updater
-  sock.ev.on("messages.upsert", async ({ messages }) => {
-  const msg = messages[0];
-  if (!msg.message) return;
+    const from = msg.key.remoteJid;
+    const isGroup = from.endsWith("@g.us");
+    const sender = msg.key.participant || msg.key.remoteJid;
+    const body = msg.message?.conversation ||
+                 msg.message?.extendedTextMessage?.text ||
+                 msg.message?.imageMessage?.caption || "";
 
-  const from = msg.key.remoteJid;
-  const isGroup = from.endsWith("@g.us");
-  const sender = msg.key.participant || msg.key.remoteJid;
-  const body = msg.message?.conversation ||
-               msg.message?.extendedTextMessage?.text ||
-               msg.message?.imageMessage?.caption || "";
+    const commandName = body.startsWith(PREFIX)
+      ? body.slice(PREFIX.length).split(/\s+/)[0].toLowerCase()
+      : null;
 
-  const commandName = body.startsWith(PREFIX)
-    ? body.slice(PREFIX.length).split(/\s+/)[0].toLowerCase()
-    : null;
+    const args = body.trim().split(/\s+/).slice(1);
+    const command = commands.get(commandName);
 
-  const args = body.trim().split(/\s+/).slice(1);
-  const command = commands.get(commandName);
+    let groupMetadata, isAdmin, botIsAdmin;
+    if (isGroup) {
+      groupMetadata = await sock.groupMetadata(from);
+      const participant = groupMetadata.participants.find(p => p.id === sender);
+      isAdmin = participant?.admin != null;
 
-  let groupMetadata, isAdmin, botIsAdmin;
-  if (isGroup) {
-    groupMetadata = await sock.groupMetadata(from);
-    const participant = groupMetadata.participants.find(p => p.id === sender);
-    isAdmin = participant?.admin != null;
-
-    const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-    botIsAdmin = groupMetadata.participants.find(p => p.id === botNumber)?.admin != null;
-  }
-
-  // Assume isOwnerAdmin is true if sender is owner or admin in group
-  const isOwnerAdmin = (OWNER_NUMBER === sender.split("@")[0]) || isAdmin;
-
-  if (isOwnerAdmin) {
-    if (AUTO_TYPING) {
-      await sock.sendPresenceUpdate('composing', from);
+      const botNumber = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+      botIsAdmin = groupMetadata.participants.find(p => p.id === botNumber)?.admin != null;
     }
 
-    if (RECORD_VOICE_FAKE) {
-      await sock.sendPresenceUpdate('recording', from);
-    }
+    const isOwnerAdmin = (OWNER_NUMBER === sender.split("@")[0]) || isAdmin;
 
-    if (AUTO_REACT_EMOJI) {
-      const emoji = AUTO_REACT_EMOJI.split('....')[0];
-      await sock.sendMessage(from, {
-        react: {
-          text: emoji,
-          key: msg.key
-        }
-      });
-    }
+    if (isOwnerAdmin) {
+      if (AUTO_TYPING) {
+        await sock.sendPresenceUpdate('composing', from);
+      }
 
-    if (body === "!viewonce" && OPEN_VIEW_ONCE) {
-      const buffer = fs.readFileSync('./media/sample.jpg'); // make sure file exists
-      await sock.sendMessage(from, {
-        image: buffer,
-        caption: "This is no longer a view once message.",
-        viewOnce: false
-      }, { quoted: msg });
-    }
-  }
+      if (RECORD_VOICE_FAKE) {
+        await sock.sendPresenceUpdate('recording', from);
+      }
 
-  // Antilink feature in English
-  if (ANTILINK_ENABLED && isGroup && antiLinkGroups[from]?.enabled) {
-    if (body.includes("https://chat.whatsapp.com")) {
-      if (!isAdmin) {
-        if (botIsAdmin) {
-          await sock.sendMessage(from, {
-            text: `⚠️ WhatsApp group link detected. Removing @${sender.split("@")[0]}...`,
-            mentions: [sender]
-          });
-
-          await new Promise(resolve => setTimeout(resolve, 1000)); // short delay
-
-          await sock.sendMessage(from, {
-            text: `👋 Goodbye @${sender.split("@")[0]}, you have been removed for sharing a group link.`,
-            mentions: [sender]
-          });
-
-          await sock.groupParticipantsUpdate(from, [sender], "remove");
-        } else {
-          await sock.sendMessage(from, {
-            text: `❌ I cannot remove @${sender.split("@")[0]} because I'm not an admin.`,
-            mentions: [sender]
-          });
-        }
-      } else {
+      if (AUTO_REACT_EMOJI) {
+        const emoji = AUTO_REACT_EMOJI.split('....')[0];
         await sock.sendMessage(from, {
-          text: `⚠️ Group link detected, but @${sender.split("@")[0]} is an admin.`,
-          mentions: [sender]
+          react: {
+            text: emoji,
+            key: msg.key
+          }
         });
+      }
+
+      if (body === "!viewonce" && OPEN_VIEW_ONCE) {
+        const buffer = fs.readFileSync('./media/sample.jpg'); // make sure file exists
+        await sock.sendMessage(from, {
+          image: buffer,
+          caption: "This is no longer a view once message.",
+          viewOnce: false
+        }, { quoted: msg });
+      }
+    }
+
+    // Antilink feature
+    if (ANTILINK_ENABLED && isGroup && antiLinkGroups[from]?.enabled) {
+      if (body.includes("https://chat.whatsapp.com")) {
+        if (!isAdmin) {
+          if (botIsAdmin) {
+            await sock.sendMessage(from, { text: `⚠️ WhatsApp group link detected. Removing ${sender.split("@")[0]}...` });
+            await sock.groupParticipantsUpdate(from, [sender], "remove");
+          } else {
+            await sock.sendMessage(from, { text: `⚠️ WhatsApp group link detected, but I am not admin so I cannot remove users.` });
+          }
+        } else {
+          await sock.sendMessage(from, { text: `⚠️ Link detected, but user is an admin.` });
+        }
+        return;
+      }
+    }
+
+    // Antilink command
+    if (body.startsWith("!antilink") && isGroup && isAdmin) {
+      const option = args[0]?.toLowerCase();
+      if (option === "on") {
+        antiLinkGroups[from] = { enabled: true };
+        fs.writeFileSync('./antilink.json', JSON.stringify(antiLinkGroups, null, 2));
+        await sock.sendMessage(from, { text: "✅ Antilink enabled." }, { quoted: msg });
+      } else if (option === "off") {
+        delete antiLinkGroups[from];
+        fs.writeFileSync('./antilink.json', JSON.stringify(antiLinkGroups, null, 2));
+        await sock.sendMessage(from, { text: "❎ Antilink disabled." }, { quoted: msg });
+      } else {
+        const status = antiLinkGroups[from]?.enabled ? "✅ ON" : "❎ OFF";
+        await sock.sendMessage(from, { text: `Antilink is currently: *${status}*` }, { quoted: msg });
       }
       return;
     }
-  }
-
-  // Antilink command toggle
-  if (body.startsWith("!antilink") && isGroup && isAdmin) {
-    const option = args[0]?.toLowerCase();
-    if (option === "on") {
-      antiLinkGroups[from] = { enabled: true };
-      fs.writeFileSync('./antilink.json', JSON.stringify(antiLinkGroups, null, 2));
-      await sock.sendMessage(from, { text: "✅ Antilink enabled." }, { quoted: msg });
-    } else if (option === "off") {
-      delete antiLinkGroups[from];
-      fs.writeFileSync('./antilink.json', JSON.stringify(antiLinkGroups, null, 2));
-      await sock.sendMessage(from, { text: "❎ Antilink disabled." }, { quoted: msg });
-    } else {
-      const status = antiLinkGroups[from]?.enabled ? "✅ ON" : "❎ OFF";
-      await sock.sendMessage(from, { text: `Antilink is currently: *${status}*` }, { quoted: msg });
-    }
-    return;
-  }
     // Command Execution
     if (commandName && command) {
       try {
