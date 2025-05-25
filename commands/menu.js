@@ -1,136 +1,150 @@
-module.exports = {
+const menu = {
   name: "menu",
-  description: "Display the full command list of SPD-XMD Bot",
-  emoji: "📘",
+  description: "Onesha orodha ya amri zote za bot",
+  emoji: "📜",
   async execute(sock, msg) {
-    try {
-      const botName = "SPD-XMD";
-      const ownerNumber = "255760317060";
-      const pushName = msg.pushName || "User";
-      const prefix = "!";
-      const hour = new Date().getHours();
+    const from = msg.key.remoteJid;
+    const commandList = `
+╭━━━┳━━━┳━━━┳━╮╱╭┳━━━┳━━━┳━╮╭━╮
+┃╭━╮┃╭━╮┃╭━╮┃┃╰╮┃┃╭━╮┃╭━╮┃┃╰╯┃┃
+┃┃╱┃┃┃╱┃┃┃╱╰┫╭╮╰╯┃┃╱┃┃╰━━┫╭╮╭╮┃
+┃╰━╯┃╰━╯┃┃╱╭┫┃╰╮┃┃┃╱┃┣━━╮┃┃┃┃┃┃
+┃╭━╮┃╭━╮┃╰━╯┃┃╱┃┃┃╰━╯┃╰━╯┃┃┃┃┃┃
+╰╯╱╰┻╯╱╰┻━━━┻╯╱╰━┻━━━┻━━━┻╯╰╯╰╯
+         *Ben Whittaker Tech Bot*
+           📱 WhatsApp Assistant
+        ✨ 200+ Features | AI | Islamic | Fun
 
-      let greeting = "👋 Hello";
-      if (hour >= 4 && hour < 12) greeting = "🌅 Good Morning";
-      else if (hour >= 12 && hour < 17) greeting = "☀️ Good Afternoon";
-      else if (hour >= 17 && hour < 21) greeting = "🌇 Good Evening";
-      else greeting = "🌙 Good Night";
+🧠 *AI & Tools*  
+├─ !ai [swali]  
+├─ !gpt4 [swali]  
+├─ !image [prompt]  
+├─ !draw [prompt]  
+├─ !code [maelezo]  
+├─ !translate [lugha]  
+├─ !brainstorm [topic]  
+├─ !summarize [text]  
+├─ !weather [jiji]  
+├─ !define [neno]  
+├─ !news  
+├─ !math [hesabu]  
+├─ !search [query]  
+├─ !chatpdf [reply pdf]  
+├─ !qr [text/url]  
 
-      const menuText = `
-╔════════════════════════════════════════╗
-║      📘✨ ${botName.toUpperCase()} COMMAND MENU ✨📘       ║
-╠════════════════════════════════════════╣
-║ ${greeting}, *${pushName}*
-║ 📅 Date: ${new Date().toLocaleDateString()}
-║ 👑 Owner: wa.me/${ownerNumber}
-╚════════════════════════════════════════╝
+🔊 *Media & Music*  
+├─ !ytmp3 [url]  
+├─ !ytmp4 [url]  
+├─ !play [title]  
+├─ !video [title]  
+├─ !spotify [link]  
+├─ !deezer [link]  
+├─ !lyrics [title]  
+├─ !ringtone [name]  
+├─ !voice [text]  
+├─ !audiotrim [sec]  
+├─ !bass [reply audio]  
+├─ !slow [reply audio]  
+├─ !fast [reply audio]  
+├─ !vn [reply audio]  
+├─ !tomp3 [reply video]  
 
-╭─🔷 GENERAL COMMANDS 🔷───────────────╮
-│ 📝 ${prefix}menu         » Show this menu         
-│ 🥊 ${prefix}ping         » Check bot status       
-│ 👑 ${prefix}owner        » Bot owner info         
-│ ⏳ ${prefix}runtime      » Bot uptime             
-│ ❤️ ${prefix}donate       » Support the bot        
-╰──────────────────────────────────────╯
+🎭 *Fun & Stickers*  
+├─ !joke  
+├─ !meme  
+├─ !sticker  
+├─ !stickertext [text]  
+├─ !emojimix [emoji+emoji]  
+├─ !ascii [text]  
+├─ !truth  
+├─ !dare  
+├─ !quote  
+├─ !fact  
+├─ !ghosttext [text]  
+├─ !lovemeter  
+├─ !ship [@user1] [@user2]  
+├─ !rate [@user]  
+├─ !fakecall  
 
-╭─🔹 AI & TECH TOOLS 🔹───────────────╮
-│ 🤖 ${prefix}ai           » Chat with AI           
-│ 🖼️ ${prefix}img          » Generate AI images     
-│ 🔊 ${prefix}tts          » Text to speech         
-│ 📄 ${prefix}pdfgen       » Make PDF file          
-│ 🎙️ ${prefix}voicegen     » Create voice notes     
-│ 🧠 ${prefix}chatgpt      » ChatGPT conversation   
-╰──────────────────────────────────────╯
+⚽ *Sports*  
+├─ !livescore [league]  
+├─ !fixtures [team]  
+├─ !table [league]  
+├─ !topscorers [league]  
+├─ !match [team1 vs team2]  
 
-╭─🔷 ISLAMIC COMMANDS 🔷──────────────╮
-│ 📖 ${prefix}quran <sura> » Quran sura         
-│ 🙏 ${prefix}dua          » Dua list           
-│ 🕰️ ${prefix}prayer       » Prayer times       
-│ 📜 ${prefix}hadith       » Hadiths            
-╰────────────────────────────────────╯
+⚙️ *Group & Admin*  
+├─ !kick [@user]  
+├─ !promote [@user]  
+├─ !demote [@user]  
+├─ !antilink on/off  
+├─ !welcome on/off  
+├─ !autosticker on/off  
+├─ !group open/close  
+├─ !tagall  
+├─ !hidetag [msg]  
+├─ !setname [name]  
+├─ !setdesc [desc]  
+├─ !setppgroup  
+├─ !linkgroup  
+├─ !revoke  
+├─ !admins  
 
-╭─🔹 SPORTS & GAMES 🔹───────────────╮
-│ ⚽ ${prefix}scores       » Match scores         
-│ 📅 ${prefix}fixtures     » Upcoming games       
-│ ❓ ${prefix}truth        » Truth game           
-│ 🎰 ${prefix}slot         » Slot game            
-│ 🧠 ${prefix}quiz         » Quiz game            
-│ 🎮 ${prefix}tictactoe    » Play Tic Tac Toe     
-│ 🎲 ${prefix}dice         » Roll a dice          
-╰────────────────────────────────────╯
+🕌 *Islamic Commands*  
+├─ !quran [sura] [aya]  
+├─ !quranAudio [sura]  
+├─ !hadith  
+├─ !hadithAudio  
+├─ !dua  
+├─ !duaaudio  
+├─ !prayer [jiji]  
+├─ !azan [jiji]  
+├─ !99names  
+├─ !zikr  
+├─ !salahtimes [jiji]  
+├─ !surahlist  
+├─ !hijridate  
+├─ !randomayah  
+├─ !tafsir [sura:aya]  
 
-╭─🔷 DOWNLOADERS 🔷───────────────╮
-│ 🎵 ${prefix}ytmp3        » YouTube to MP3       
-│ 🎬 ${prefix}tiktok       » TikTok downloader     
-│ 📘 ${prefix}facebook     » FB video download     
-│ 📱 ${prefix}instagram    » Insta story download  
-│ 🎧 ${prefix}spotify      » Spotify downloader    
-╰────────────────────────────────────╯
+🛡️ *Security*  
+├─ !banword add/remove [word]  
+├─ !antifake on/off  
+├─ !antiviewonce on/off  
+├─ !antidelete on/off  
+├─ !antiimage on/off  
+├─ !antivideo on/off  
 
-╭─🔹 MUSIC COMMANDS 🔹───────────────╮
-│ ▶️ ${prefix}play          » Play song from YouTube
-│ ⏸️ ${prefix}pause         » Pause current song    
-│ ⏹️ ${prefix}stop          » Stop music playback   
-│ 🔉 ${prefix}volume <1-100>» Set volume           
-│ ⏭️ ${prefix}skip          » Skip current song     
-╰────────────────────────────────────╯
+👤 *Owner & System*  
+├─ !eval [code]  
+├─ !exec [cmd]  
+├─ !restart  
+├─ !shutdown  
+├─ !setpp  
+├─ !join [group link]  
+├─ !leave [group]  
+├─ !block [@user]  
+├─ !unblock [@user]  
+├─ !broadcast [msg]  
+├─ !bcimage [reply img]  
+├─ !feature on/off [name]  
+├─ !ban [@user]  
+├─ !unban [@user]  
+├─ !uptime  
+╰━━━━━━━━━━━━━━━━━━━━━━━╯
+      *© 2025 Ben Whittaker Tech*
+╭━━━━━━━━━━━━━━━━━━━━━━━╮
+┃   ⚙️ Prefix: *!*         📌
+┃   ⚡ Over 200+ Features Active
+┃   🧠 AI | 🎵 Music | 🎭 Fun | 🕌 Islamic
+┃   🔒 Owner: wa.me/255760317060
+╰━━━━━━━━━━━━━━━━━━━━━━━╯
+      📍 *Powered by: Ben Whittaker Tech*
+         🌐 www.benwhittaker.tech
+    `.trim();
 
-╭─🔷 STICKERS & IMAGES 🔷───────────────╮
-│ 🖼️ ${prefix}sticker       » Make sticker from image/video
-│ 🔄 ${prefix}toimg         » Sticker to image       
-│ 🎭 ${prefix}emoji         » Create emoji sticker   
-│ 🖌️ ${prefix}paint         » Paint on image         
-│ 🔍 ${prefix}resize        » Resize image           
-╰────────────────────────────────────╯
-
-╭─🔹 SECURITY & ADMIN 🔹───────────────╮
-│ 🚫 ${prefix}block        » Block user           
-│ ✅ ${prefix}unblock      » Unblock user         
-│ ⚙️ ${prefix}setprefix    » Set bot prefix       
-│ 🧾 ${prefix}antilink on  » Enable antilink 🔗    
-│ ❌ ${prefix}antilink off » Disable antilink      
-│ 👥 ${prefix}add          » Add user to group    
-│ ❌ ${prefix}kick         » Remove user from group
-│ 🔇 ${prefix}mute         » Mute group           
-│ 🔊 ${prefix}unmute       » Unmute group         
-╰────────────────────────────────────╯
-
-╭─🔷 FUN & ENTERTAINMENT 🔷───────────────╮
-│ 🐶 ${prefix}dog          » Dog image            
-│ 🐱 ${prefix}cat          » Cat image            
-│ 🗣️ ${prefix}simi         » Chat with simi       
-│ 😂 ${prefix}joke         » Joke of the day      
-│ ❤️ ${prefix}love         » Love calculator      
-│ 🎤 ${prefix}sing         » Bot sings a song     
-╰────────────────────────────────────╯
-
-╭─🔹 TOOLS & UTILITY 🔹───────────────╮
-│ 🧮 ${prefix}calc         » Calculator            
-│ 🌐 ${prefix}translate    » Translate text        
-│ ⏰ ${prefix}timer        » Set timer             
-│ 🗓️ ${prefix}calendar     » View calendar         
-│ 📝 ${prefix}notes        » Save notes            
-╰────────────────────────────────────╯
-
-╭─🔵 LINKS 🔵──────────────────────────╮
-│ 🛠️ GitHub: github.com/lexus-SGR
-│ 🧑‍💻 Powered by: ${botName}
-╰────────────────────────────────────╯
-`;
-
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: menuText,
-      });
-
-      await sock.sendMessage(msg.key.remoteJid, {
-        react: { text: "📘", key: msg.key },
-      });
-
-    } catch (error) {
-      console.error("Menu error:", error);
-      await sock.sendMessage(msg.key.remoteJid, {
-        text: "❌ Menu haikufunguka kwa sasa.",
-      });
-    }
-  },
+    await sock.sendMessage(from, { text: commandList });
+  }
 };
+
+module.exports = menu;
