@@ -148,5 +148,5 @@ await sock.sendMessage(from, { text: commandList });
 }
 };
 
-module.exports = menu;......nataka unipe lengine zuri zIdi
+module.exports = menu;
 
