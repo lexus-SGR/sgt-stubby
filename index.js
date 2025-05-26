@@ -270,18 +270,18 @@ async function handleViewOnceMessage(msg) {
     }
 
     // Auto view status
-    if (msg.key.remoteJid === 'status@broadcast' && AUTO_VIEW_STATUS) {
-      try {
-        await sock.readMessages([msg.key]);
-        console.log(`👀 Auto-viewed status from ${msg.pushName || msg.key.participant}`);
-      } catch (err) {
-        console.error('❌ Failed to auto-view status:', err.message);
+    
+      if (msg.key.remoteJid === 'status@broadcast') {
+        try {
+          await sock.readMessages([msg.key]);
+          console.log(`👀 Auto-viewed status from ${msg.pushName || msg.key.participant}`);
+        } catch (err) {
+          console.error('❌ Failed to auto-view status:', err.message);
+        }
       }
     }
-  }
-});
-
-  }
+  });
 }
 
 startBot();
+
