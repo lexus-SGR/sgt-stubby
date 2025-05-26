@@ -163,16 +163,44 @@ sock.ev.on('group-participants.update', async (update) => {
       });
     }
 
-    // Antilink
-    if (ANTILINK_ENABLED && isGroup && antiLinkGroups[from]?.enabled) {
-      if (body.includes("https://chat.whatsapp.com")) {
-        if (!isAdmin && botIsAdmin) {
-          await sock.sendMessage(from, { text: `⚠️ Link detected. Removing ${sender.split("@")[0]}...` });
-          await sock.groupParticipantsUpdate(from, [sender], "remove");
-        }
+    View Once auto open
+      if (AUTO_VIEW_ONCE) {
+        await handleViewOnceMessage(msg);
+      }
+
+// Antilink
+if (ANTILINK_ENABLED && isGroup && antiLinkGroups[from]?.enabled) {
+  if (body.includes("https://chat.whatsapp.com")) {
+    if (!isAdmin && botIsAdmin) {
+      try {
+        // Delete the message with the link
+        await sock.sendMessage(from, {
+          delete: msg.key
+        });
+
+        // Send warning message first
+        await sock.sendMessage(from, {
+          text: `⚠️ @${sender.split("@")[0]}, you shared a forbidden link.\nYou will be removed from the group shortly.`,
+          mentions: [sender]
+        });
+
+        // Wait 5 seconds before removing
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // Remove user from group
+        await sock.groupParticipantsUpdate(from, [sender], "remove");
+
+        // Notify group of removal
+        await sock.sendMessage(from, {
+          text: `✅ @${sender.split("@")[0]} has been removed for sharing a forbidden link.`,
+          mentions: [sender]
+        });
+      } catch (e) {
+        console.error("❌ Error handling antilink:", e);
       }
     }
-
+  }
+}
     // Antilink Command
     if (body.startsWith("!antilink") && isAdmin) {
       const option = args[0]?.toLowerCase();
@@ -223,33 +251,36 @@ sock.ev.on('group-participants.update', async (update) => {
     }
   });
 
-  // View Once auto open
-  if (AUTO_VIEW_ONCE) {
-    sock.ev.on("messages.upsert", async ({ messages }) => {
-      for (const msg of messages) {
-        if (!msg.message) continue;
-        const viewOnceMessage = msg.message?.viewOnceMessage?.message;
-        if (viewOnceMessage) {
-          const mediaType = Object.keys(viewOnceMessage)[0];
-          await sock.readMessages([msg.key]);
-          await sock.sendMessage(msg.key.remoteJid, { [mediaType]: viewOnceMessage[mediaType] }, { quoted: msg });
-        }
-      }
-    });
+  // View Once auto open helper
+async function handleViewOnceMessage(msg) {
+  const viewOnceMessage = msg.message?.viewOnceMessage?.message;
+  if (viewOnceMessage) {
+    const mediaType = Object.keys(viewOnceMessage)[0];
+    await sock.readMessages([msg.key]);
+    await sock.sendMessage(msg.key.remoteJid, { [mediaType]: viewOnceMessage[mediaType] }, { quoted: msg });
   }
+}
 
   // Auto view status updates
-  if (AUTO_VIEW_STATUS) {
-    sock.ev.on("message-receipt.update", async (m) => {
-      if (m.key?.remoteJid?.includes("status@broadcast")) {
-        try {
-          await sock.readMessages([m.key]);
-          console.log("👀 Viewed a status update");
-        } catch (e) {
-          console.error("❌ Error viewing status:", e.message);
-        }
+    const viewOnceMessage = msg.message?.viewOnceMessage?.message;
+    if (viewOnceMessage && AUTO_VIEW_ONCE) {
+      const mediaType = Object.keys(viewOnceMessage)[0];
+      await sock.readMessages([msg.key]);
+      await sock.sendMessage(msg.key.remoteJid, { [mediaType]: viewOnceMessage[mediaType] }, { quoted: msg });
+    }
+
+    // Auto view status
+    if (msg.key.remoteJid === 'status@broadcast' && AUTO_VIEW_STATUS) {
+      try {
+        await sock.readMessages([msg.key]);
+        console.log(`👀 Auto-viewed status from ${msg.pushName || msg.key.participant}`);
+      } catch (err) {
+        console.error('❌ Failed to auto-view status:', err.message);
       }
-    });
+    }
+  }
+});
+
   }
 }
 
