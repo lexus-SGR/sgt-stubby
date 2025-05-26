@@ -163,7 +163,7 @@ sock.ev.on('group-participants.update', async (update) => {
       });
     }
 
-    View Once auto open
+    //View Once auto open
       if (AUTO_VIEW_ONCE) {
         await handleViewOnceMessage(msg);
       }
