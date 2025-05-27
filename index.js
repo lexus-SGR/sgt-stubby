@@ -156,7 +156,6 @@ if (sender !== OWNER_JID) {
             console.error("Command error:", err);
         }
     }
-});
 
     let groupMetadata = {}, isAdmin = false, botIsAdmin = false;
     if (isGroup) {
