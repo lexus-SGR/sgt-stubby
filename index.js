@@ -141,13 +141,7 @@ async function startBot() {
 
     const args = body.trim().split(/\s+/).slice(1);
     const command = commands.get(commandName);
-    
-// Restrict bot usage to owner only
-if (sender !== OWNER_JID) {
-  await sock.sendMessage(from, { text: "❌ Sorry, this bot is private and only accessible to the owner." }, { quoted: msg });
-  return;
-}
-
+  
     // If command exists, execute it (only owner will reach here)
     if (command) {
         try {
