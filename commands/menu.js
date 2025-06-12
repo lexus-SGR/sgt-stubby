@@ -1,4 +1,4 @@
-const menu = {
+module.exports = {
   name: "menu",
   description: "Show full list of bot commands",
   emoji: "📜",
@@ -136,5 +136,3 @@ const menu = {
     await sock.sendMessage(from, { text: menuText });
   }
 };
-
-module.exports = { menu };
