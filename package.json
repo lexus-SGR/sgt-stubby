@@ -20,6 +20,7 @@
     "chalk": "^5.3.0",
     "cheerio": "^1.0.0-rc.12",
     "fs-extra": "^11.2.0",
+    "moment-timezone": "^0.5.48",
     "pino": "^8.17.0",
     "qrcode-terminal": "^0.12.0"
   }
