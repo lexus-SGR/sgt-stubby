@@ -1,29 +1,43 @@
 module.exports = {
   name: "hidetag",
-  description: "Tag all group members secretly",
-  category: "group",
-  async execute(sock, msg, args, from, sender, groupMetadata, isGroupAdmin, isBotAdmin) {
-    if (!groupMetadata || !groupMetadata.participants) {
-      return sock.sendMessage(from, { text: "⛔ Group only command!" });
+  description: "Silently mention everyone in the group.",
+  emoji: "🎉",
+  async execute(sock, msg) {
+    const jid = msg.key.remoteJid;
+
+    // Lazima iwe group
+    if (!jid.endsWith("@g.us")) {
+      return await sock.sendMessage(jid, {
+        text: "❌ This command only works in group chats."
+      });
     }
 
-    if (!isGroupAdmin && sender !== process.env.OWNER_JID) {
-      return sock.sendMessage(from, { text: "⚠️ Only admins can use this command!" });
+    // Chukua ujumbe aliotuma
+    const messageText =
+      msg.message?.conversation ||
+      msg.message?.extendedTextMessage?.text;
+
+    if (!messageText) {
+      return await sock.sendMessage(jid, {
+        text: "📩 Tafadhali andika ujumbe baada ya !hidetag"
+      });
     }
 
-    const participants = groupMetadata.participants.map(p => p.id);
-    const message = args.join(" ") || "👀";
+    try {
+      // Chukua namba za participants wote
+      const groupMetadata = await sock.groupMetadata(jid);
+      const members = groupMetadata.participants.map(p => p.id);
 
-    await sock.sendMessage(from, {
-      text: message,
-      mentions: participants,
-    });
+      // Tuma ujumbe unaowamention wote kimya kimya
+      await sock.sendMessage(jid, {
+        text: `🎉 *Broadcast (hidden tags):*\n${messageText}`,
+        mentions: members
+      });
 
-    await sock.sendMessage(from, {
-      react: {
-        text: "🙈",
-        key: msg.key,
-      },
-    });
+    } catch (e) {
+      await sock.sendMessage(jid, {
+        text: "⚠️ Unable to fetch members. Make sure bot is *admin* in this group."
+      });
+    }
   }
 };
