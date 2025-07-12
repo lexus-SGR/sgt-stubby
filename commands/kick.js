@@ -1,16 +1,19 @@
 module.exports = {
   name: "kick",
-  description: "Remove a user from the group.",
-  emoji: "🥾",
-  async execute(sock, msg, args, isAdmin, isBotAdmin, groupMetadata) {
-    if (!msg.key.remoteJid.endsWith("@g.us")) return;
-    if (!isAdmin) return sock.sendMessage(msg.key.remoteJid, { text: "You must be an admin to use this." });
-    if (!isBotAdmin) return sock.sendMessage(msg.key.remoteJid, { text: "Bot needs admin rights to kick." });
+  description: "Kick a member by replying to their message.",
+  emoji: "🚪",
+  async execute(sock, msg) {
+    const jid = msg.key.remoteJid;
+    const isGroup = jid.endsWith("@g.us");
+    if (!isGroup) return await sock.sendMessage(jid, { text: "❌ Group only command." });
 
-    const mentioned = msg.message.extendedTextMessage?.contextInfo?.mentionedJid;
-    if (!mentioned || mentioned.length === 0) return sock.sendMessage(msg.key.remoteJid, { text: "Tag the user to kick." });
+    const replyUser = msg.message?.extendedTextMessage?.contextInfo?.participant;
+    if (!replyUser) return await sock.sendMessage(jid, { text: "✋ Please reply to the user's message to kick them." });
 
-    await sock.groupParticipantsUpdate(msg.key.remoteJid, mentioned, "remove");
-    await sock.sendMessage(msg.key.remoteJid, { text: `Kicked ${mentioned[0]}`, react: { text: "🥾", key: msg.key } });
+    await sock.groupParticipantsUpdate(jid, [replyUser], "remove");
+    await sock.sendMessage(jid, {
+      text: `🚪 @${replyUser.split("@")[0]} has been *removed* from the group.`,
+      mentions: [replyUser]
+    });
   }
 };
