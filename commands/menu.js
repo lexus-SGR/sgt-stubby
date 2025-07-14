@@ -1,121 +1,110 @@
 const fs = require("fs");
-const moment = require("moment-timezone");
 require("dotenv").config();
 
 module.exports = {
   name: "menu",
   description: "Show all bot commands in styled format",
   category: "general",
-  execute: async (sock, m, args) => {
+  execute: async (sock, m) => {
     const jid = m.key.remoteJid;
-    const time = moment().tz("Africa/Nairobi").format("HH:mm:ss");
-    const date = moment().tz("Africa/Nairobi").format("dddd, MMMM Do YYYY");
-    const owner = process.env.OWNER_NAME || "SGT-STUBBY";
+    const now = new Date();
+
+    const time = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Nairobi",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(now);
+
+    const date = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Africa/Nairobi",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(now);
+
+    const owner = process.env.OWNER_NAME || "Ben Whittaker Tech";
 
     const menuText = `
-╭─〔 *🤖 SGT-STUBBY WHATSAPP BOT* 〕─╮
-│ 🗓️ Date: ${date}
-│ 🕒 Time: ${time}
+╭─〔 🤖 *${owner.toUpperCase()} BOT MENU* 〕─╮
+│ 🗓️ ${date}
+│ 🕒 ${time}
 │ 👑 Owner: ${owner}
-╰────────────────────────╯
+╰──────────────────────────────╯
 
-╭─〔 *📌 GENERAL* 〕─╮
-│ !menu
-│ !help
-│ !ping
-│ !uptime
-│ !speed
-│ !owner
-│ !info
-│ !script
+╭─〔 📌 *GENERAL (15)* 〕─╮
+│ !menu   !help   !ping   !uptime
+│ !speed  !owner  !info   !script
+│ !time   !about  !support  !alive
+│ !bug    !contact  !rules
 ╰────────────────────╯
 
-╭─〔 *🧠 AI & INFO* 〕─╮
-│ !ai [msg]
-│ !chatgpt [prompt]
-│ !img [prompt]
-│ !weather [city]
-│ !news
-│ !quote
-│ !wiki [query]
-│ !fact
+╭─〔 🧠 *AI & INTELIGENCE (15)* 〕─╮
+│ !ai     !chatgpt   !img
+│ !quote  !wiki      !fact
+│ !news   !brain     !remind
+│ !ask    !truth     !idea
+│ !lang   !gpt4      !weather
 ╰────────────────────╯
 
-╭─〔 *📷 STICKER & MEDIA* 〕─╮
-│ !sticker
-│ !toimg
-│ !tomp4
-│ !tomp3
-│ !emoji [emoji]
-│ !attp [text]
-│ !ttp [text]
-│ !take [sticker]
-╰────────────────────────╯
-
-╭─〔 *🎵 MUSIC & VIDEO* 〕─╮
-│ !play [song]
-│ !ytmp3 [url]
-│ !ytmp4 [url]
-│ !soundcloud [link]
-│ !lyrics [song]
-│ !video [query]
-│ !spotify [track]
+╭─〔 📷 *MEDIA & STICKERS (15)* 〕─╮
+│ !sticker  !toimg    !tomp4
+│ !tomp3    !emoji    !attp
+│ !ttp      !take     !removebg
+│ !resize   !invert   !enhance
+│ !blur     !mirror   !flip
 ╰────────────────────╯
 
-╭─〔 *🛠️ TOOLS & UTILS* 〕─╮
-│ !calc [math]
-│ !translate [text]
-│ !shorten [url]
-│ !qr [text]
-│ !removebg
-│ !screenshot [url]
-│ !github [user]
-│ !pastebin [text]
+╭─〔 🎵 *MUSIC & VIDEO (15)* 〕─╮
+│ !play     !ytmp3     !ytmp4
+│ !spotify  !lyrics    !video
+│ !music    !soundcloud !tiktokmp3
+│ !tiktokmp4 !joox     !snapinsta
+│ !shazam   !songname  !audiocut
 ╰────────────────────╯
 
-╭─〔 *🎉 FUN & GAMES* 〕─╮
-│ !joke
-│ !meme
-│ !truth
-│ !dare
-│ !ship @tag1 @tag2
-│ !rate [name]
-│ !gayrate [name]
-│ !8ball [question]
+╭─〔 🛠️ *TOOLS & UTILS (15)* 〕─╮
+│ !calc     !translate   !shorten
+│ !qr       !github      !pastebin
+│ !timer    !screenshot  !write
+│ !hack     !trace       !find
+│ !converter !ip         !search
 ╰────────────────────╯
 
-╭─〔 *👥 GROUP ADMIN* 〕─╮
-│ !tagall
-│ !kick @user
-│ !add [num]
-│ !promote @user
-│ !demote @user
-│ !grouplink
-│ !mute
-│ !unmute
-│ !revoke
+╭─〔 🎉 *FUN & GAMES (15)* 〕─╮
+│ !joke     !meme       !dare
+│ !truth    !roll       !8ball
+│ !gayrate  !rate       !ship
+│ !poll     !flirt      !pickup
+│ !yesorno  !howhot     !match
 ╰────────────────────╯
 
-╭─〔 *🔒 OWNER ONLY* 〕─╮
-│ !shutdown
-│ !restart
-│ !eval [code]
-│ !broadcast [msg]
-│ !ban [user]
-│ !unban [user]
-│ !setprefix [x]
-│ !setppbot
+╭─〔 👥 *GROUP ADMIN (15)* 〕─╮
+│ !tagall   !hidetag   !kick
+│ !add      !promote   !demote
+│ !revoke   !grouplink !mute
+│ !unmute   !warn      !unwarn
+│ !checkwarn !rules     !setname
 ╰────────────────────╯
-🌟 lexus AI HUB    🌟
 
-🔖 *Category:* General, AI, Media, Tools, Fun, Group, Owner
-`;
+╭─〔 🔐 *OWNER ONLY (15)* 〕─╮
+│ !shutdown  !restart    !eval
+│ !ban       !unban      !setprefix
+│ !setppbot  !block      !unblock
+│ !backup    !broadcast  !dev
+│ !getcode   !setbio     !cleardb
+╰────────────────────╯
 
-    const imageBuffer = fs.readFileSync('./public/lexus AI HUB.png');
+🔖 *Categories:* General │ AI │ Media │ Music │ Tools │ Fun │ Admin │ Owner  
+🌟 Powered by Lexus AI HUB 🌟
+`.trim();
+
+    const imageBuffer = fs.readFileSync("./public/lexus AI HUB.png");
 
     await sock.sendMessage(jid, {
       image: imageBuffer,
       caption: menuText,
     });
-  }
+  },
 };
