@@ -29,8 +29,6 @@ const OWNER_NUMBER = process.env.OWNER_NUMBER || "255760317060";
 const OWNER_JID = OWNER_NUMBER + "@s.whatsapp.net";
 const PREFIX = "!";
 const AUTO_BIO = true;
-const AUTO_VIEW_ONCE = process.env.AUTO_VIEW_ONCE === "on";
-const ANTILINK_ENABLED = process.env.ANTILINK === "on";
 const AUTO_TYPING = process.env.AUTO_TYPING === "on";
 const RECORD_VOICE_FAKE = process.env.RECORD_VOICE_FAKE === "on";
 const AUTO_VIEW_STATUS = process.env.AUTO_VIEW_STATUS === "on";
@@ -44,12 +42,30 @@ try {
   fs.writeFileSync('allowed.json', '{}');
 }
 
-// Load Antilink settings
+// Load Antilink groups (keep old method for backwards compatibility)
 let antiLinkGroups = {};
 try {
   antiLinkGroups = JSON.parse(fs.readFileSync('antilink.json'));
 } catch {
   fs.writeFileSync('antilink.json', '{}');
+}
+
+// Feature flags with defaults and saved state
+let featureFlags = {
+  antilink: { enabled: false, action: "delete" }, // default action: delete
+  antidelete: { enabled: false },
+  autoViewOnce: { enabled: false }
+};
+
+// Load saved featureFlags
+try {
+  const savedFlags = JSON.parse(fs.readFileSync("featureFlags.json"));
+  featureFlags = { ...featureFlags, ...savedFlags };
+} catch {}
+
+// Save flags helper
+function saveFlags() {
+  fs.writeFileSync("featureFlags.json", JSON.stringify(featureFlags, null, 2));
 }
 
 // Start Bot
@@ -162,9 +178,11 @@ async function startBot() {
     const sender = msg.key.participant || msg.key.remoteJid;
     const number = sender.split("@")[0];
 
-    const body = msg.message?.conversation ||
+    const body =
+      msg.message?.conversation ||
       msg.message?.extendedTextMessage?.text ||
-      msg.message?.imageMessage?.caption || "";
+      msg.message?.imageMessage?.caption ||
+      "";
 
     const commandName = body.startsWith(PREFIX)
       ? body.slice(PREFIX.length).split(/\s+/)[0].toLowerCase()
@@ -172,6 +190,44 @@ async function startBot() {
 
     const args = body.trim().split(/\s+/).slice(1);
     const command = commands.get(commandName);
+
+    // Owner commands for feature toggling
+    if (body.startsWith(PREFIX) && number === OWNER_NUMBER) {
+      const [cmd, arg1, arg2] = body.slice(PREFIX.length).trim().split(/\s+/);
+
+      if (cmd === "antilink") {
+        if (arg1 === "on" || arg1 === "off") {
+          featureFlags.antilink.enabled = arg1 === "on";
+          saveFlags();
+          await sock.sendMessage(from, { text: `✅ Antilink turned ${arg1.toUpperCase()}` });
+          return;
+        }
+        if (arg1 === "action" && ["delete", "remove", "warn"].includes(arg2)) {
+          featureFlags.antilink.action = arg2;
+          saveFlags();
+          await sock.sendMessage(from, { text: `✅ Antilink action set to ${arg2.toUpperCase()}` });
+          return;
+        }
+      }
+
+      if (cmd === "antidelete") {
+        if (arg1 === "on" || arg1 === "off") {
+          featureFlags.antidelete.enabled = arg1 === "on";
+          saveFlags();
+          await sock.sendMessage(from, { text: `✅ Antidelete turned ${arg1.toUpperCase()}` });
+          return;
+        }
+      }
+
+      if (cmd === "viewonce") {
+        if (arg1 === "on" || arg1 === "off") {
+          featureFlags.autoViewOnce.enabled = arg1 === "on";
+          saveFlags();
+          await sock.sendMessage(from, { text: `✅ Auto view-once turned ${arg1.toUpperCase()}` });
+          return;
+        }
+      }
+    }
 
     // Owner can allow users
     if (body.startsWith(`${PREFIX}allow`) && number === OWNER_NUMBER) {
@@ -207,7 +263,7 @@ async function startBot() {
     }
 
     // Auto open view once messages
-    if (AUTO_VIEW_ONCE && msg.message.viewOnceMessage) {
+    if (featureFlags.autoViewOnce.enabled && msg.message.viewOnceMessage) {
       try {
         const viewOnceMsg = msg.message.viewOnceMessage.message;
         const mediaType = Object.keys(viewOnceMsg)[0];
@@ -217,77 +273,33 @@ async function startBot() {
       }
     }
 
-    // Antilink enforcement
-    if (ANTILINK_ENABLED && isGroup && antiLinkGroups[from]?.enabled) {
-      if (body.includes("https://chat.whatsapp.com")) {
-        const groupMetadata = await sock.groupMetadata(from);
-        const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin != null;
-        const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
-        const botIsAdmin = groupMetadata.participants.find(p => p.id === botJid)?.admin != null;
+    // Antilink enforcement inside group
+    if (
+      featureFlags.antilink.enabled &&
+      isGroup &&
+      /https?:\/\/chat\.whatsapp\.com\/\S+/i.test(body)
+    ) {
+      const groupMetadata = await sock.groupMetadata(from);
+      const isSenderAdmin = groupMetadata.participants.find((p) => p.id === sender)?.admin != null;
+      const botJid = sock.user.id.split(":")[0] + "@s.whatsapp.net";
+      const botIsAdmin = groupMetadata.participants.find((p) => p.id === botJid)?.admin != null;
 
-        if (!isAdmin && botIsAdmin) {
-          try {
+      if (!isSenderAdmin && botIsAdmin) {
+        try {
+          if (featureFlags.antilink.action === "delete") {
             await sock.sendMessage(from, { delete: msg.key });
-            await sock.sendMessage(from, {
-              text: `⚠️ @${number}, you shared a forbidden link and will be removed.\n${BRAND}`,
-              mentions: [sender]
-            });
-            await new Promise(r => setTimeout(r, 5000));
+          } else if (featureFlags.antilink.action === "remove") {
             await sock.groupParticipantsUpdate(from, [sender], "remove");
+          } else if (featureFlags.antilink.action === "warn") {
             await sock.sendMessage(from, {
-              text: `✅ @${number} was removed for sharing forbidden links.\n${BRAND}`,
-              mentions: [sender]
+              text: `⚠️ @${number}, usitumie link hapa!`,
+              mentions: [sender],
             });
-          } catch (e) {
-            console.error("❌ Error handling antilink:", e);
           }
+        } catch (e) {
+          console.error("❌ Antilink error:", e);
         }
       }
-    }
-
-    // Antilink toggle command (admins only)
-    if (commandName === "antilink" && isGroup) {
-      const groupMetadata = await sock.groupMetadata(from);
-      const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin != null;
-      if (!isAdmin) return;
-
-      const option = args[0]?.toLowerCase();
-      if (option === "on") {
-        antiLinkGroups[from] = { enabled: true };
-        fs.writeFileSync('antilink.json', JSON.stringify(antiLinkGroups, null, 2));
-        await sock.sendMessage(from, { text: `✅ Antilink enabled.\n${BRAND}` });
-      } else if (option === "off") {
-        delete antiLinkGroups[from];
-        fs.writeFileSync('antilink.json', JSON.stringify(antiLinkGroups, null, 2));
-        await sock.sendMessage(from, { text: `❎ Antilink disabled.\n${BRAND}` });
-      } else {
-        const status = antiLinkGroups[from]?.enabled ? "✅ ON" : "❎ OFF";
-        await sock.sendMessage(from, { text: `Antilink is: *${status}*\n${BRAND}` });
-      }
-      return;
-    }
-
-    // Welcome toggle command (group admins only)
-    if (commandName === "welcome") {
-      if (!isGroup) {
-        await sock.sendMessage(from, { text: `❌ This command is for groups only.\n${BRAND}` }, { quoted: msg });
-        return;
-      }
-      const groupMetadata = await sock.groupMetadata(from);
-      const isAdmin = groupMetadata.participants.find(p => p.id === sender)?.admin != null;
-      if (!isAdmin) {
-        await sock.sendMessage(from, { text: `❌ Only admins can use this command.\n${BRAND}` }, { quoted: msg });
-        return;
-      }
-
-      if (welcomeGroups.has(from)) {
-        welcomeGroups.delete(from);
-        await sock.sendMessage(from, { text: `👋 Welcome messages have been *disabled*.\n${BRAND}` }, { quoted: msg });
-      } else {
-        welcomeGroups.add(from);
-        await sock.sendMessage(from, { text: `✅ Welcome messages have been *enabled*. New members will now get a welcome message.\n${BRAND}` }, { quoted: msg });
-      }
-      return;
     }
 
     // Execute command if found and allowed
@@ -299,6 +311,28 @@ async function startBot() {
       }
     }
   });
+
+  // Antidelete logic (resend deleted messages)
+  sock.ev.on("messages.update", async (updates) => {
+    if (!featureFlags.antidelete.enabled) return;
+
+    for (const update of updates) {
+      if (update.messageStubType === 1) {
+        // message deleted
+        try {
+          const chat = update.key.remoteJid;
+          const deletedMsgId = update.key.id;
+          const deletedMsg = await sock.loadMessage(chat, deletedMsgId);
+          if (deletedMsg) {
+            await sock.sendMessage(chat, deletedMsg.message, { quoted: deletedMsg });
+          }
+        } catch (e) {
+          console.error("❌ Error resending deleted message:", e);
+        }
+      }
+    }
+  });
+
 }
 
 startBot();
