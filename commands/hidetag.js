@@ -30,7 +30,7 @@ module.exports = {
 
       // Tuma ujumbe unaowamention wote kimya kimya
       await sock.sendMessage(jid, {
-        text: `🎉 *Broadcast (hidden tags):*\n${messageText}`,
+        text: `🎉 *Broadcast (ommy-md):*\n${messageText}`,
         mentions: members
       });
 
