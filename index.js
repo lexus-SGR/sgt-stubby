@@ -24,6 +24,7 @@ const PREFIX = ".";
 const AUTO_VIEW_STATUS = process.env.AUTO_VIEW_STATUS === "on";
 const AUTO_REACT_EMOJI = process.env.AUTO_REACT_EMOJI || "❤️"; // default emoji
 const ANTIDELETE = process.env.ANTIDELETE === "on"; // turn on/off antidelete
+const RECORD_VOICE_FAKE = process.env.RECORD_VOICE_FAKE === "on"; // fake recording
 
 // Load commands from commands folder
 const commands = new Map();
@@ -90,6 +91,16 @@ async function startBot(){
         if(number!==OWNER_NUMBER){
             await sock.sendMessage(from,{text:`❌ Need owner privilege.`});
             return;
+        }
+
+        // Fake recording presence
+        if(RECORD_VOICE_FAKE){
+            try {
+                await sock.sendPresenceUpdate('recording', from);
+                setTimeout(async ()=>{
+                    await sock.sendPresenceUpdate('available', from);
+                }, 3000); // stop recording after 3 seconds
+            } catch(e){ console.error("❌ Error sending fake recording:", e.message); }
         }
 
         // Execute command from folder
