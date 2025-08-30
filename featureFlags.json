@@ -1,0 +1,10 @@
+{
+  "warnLimit": 3,
+  "autoRemove": { "enabled": true },
+  "antitag": { "enabled": true },
+  "antimention": { "enabled": true },
+  "antibot": { "enabled": true },
+  "antibadword": { "enabled": true },
+  "antipornsticker": { "enabled": true },
+  "antipornvideo": { "enabled": true }
+}
